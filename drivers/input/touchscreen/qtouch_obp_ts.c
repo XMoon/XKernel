@@ -535,7 +535,7 @@ static int qtouch_hw_init(struct qtouch_ts_data *ts)
 	}
 
 	/* configure the user data table */
-	obj = find_obj(ts, QTM_OBJ_CPT_USERDATA);
+	obj = find_obj(ts, QTM_OBJ_SPT_USERDATA);
 	if (obj && obj->entry.num_inst > 0) {
 		ret = qtouch_write_addr(ts, obj->entry.addr,
 					&ts->pdata->userdata,
