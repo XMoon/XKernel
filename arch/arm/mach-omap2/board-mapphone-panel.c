@@ -45,17 +45,6 @@
 #error CONFIG_USER_PANEL_DRIVER must be defined for Mapphone to compile
 #endif
 
-////////////////////////////////////////////////////////////////////////
-// Adding by no change device tree
-/* Display panel Node */
-#define DT_PATH_DISPLAY1	"/System@0/Display@0"
-#define DT_PATH_DISPLAY2	"/System@0/Display@1"
-
-/* Feature Node */
-#define DT_HIGH_LEVEL_FEATURE	"/System@0/Feature@0"
-////////////////////////////////////////////////////////////////////////
-
-
 #define MAPPHONE_HDMI_DSS_0_5_MUX  (OMAP34XX_MUX_MODE0 | OMAP34XX_PIN_OUTPUT)
 
 static u16 mapphone_hdmi_stored_mux[6];
@@ -95,11 +84,11 @@ static struct omap_dss_device mapphone_lcd_device = {
 	.type = OMAP_DISPLAY_TYPE_DSI,
 	.name = "lcd",
 	.driver_name = "mapphone-panel",
-	.phy.dsi.clk_lane = 1,
+	.phy.dsi.clk_lane = 3,
 	.phy.dsi.clk_pol = 0,
-	.phy.dsi.data1_lane = 2,
+	.phy.dsi.data1_lane = 1,
 	.phy.dsi.data1_pol = 0,
-	.phy.dsi.data2_lane = 3,
+	.phy.dsi.data2_lane = 2,
 	.phy.dsi.data2_pol = 0,
 	.phy.dsi.div.regn = 13,
 	.phy.dsi.div.regm = 170,
@@ -107,8 +96,8 @@ static struct omap_dss_device mapphone_lcd_device = {
 	.phy.dsi.div.regm4 = 5,
 	.phy.dsi.div.lck_div = 1,
 	.phy.dsi.div.pck_div = 4,
-	.phy.dsi.div.lp_clk_div = 7,
-	.reset_gpio = 0,
+	.phy.dsi.div.lp_clk_div = 14,
+	.reset_gpio = 136,
 	.phy.dsi.xfer_mode = OMAP_DSI_XFER_CMD_MODE,
 	.platform_enable = mapphone_panel_enable,
 	.platform_disable = mapphone_panel_disable,
@@ -139,6 +128,7 @@ static int mapphone_panel_enable(struct omap_dss_device *dssdev)
 			return PTR_ERR(display_regulator);
 		}
 		regulator_enable(display_regulator);
+		mdelay(10);
 		return 0;
 	}
 
@@ -153,9 +143,16 @@ static int mapphone_panel_enable(struct omap_dss_device *dssdev)
 
 static void mapphone_panel_disable(struct omap_dss_device *dssdev)
 {
-	gpio_direction_output(mapphone_lcd_device.reset_gpio, 1);
-	gpio_set_value(mapphone_lcd_device.reset_gpio, 0);
-	msleep(1);
+	bool deep_sleep_mode_sup = false;
+
+	if (dssdev->driver->deep_sleep_mode)
+		deep_sleep_mode_sup = dssdev->driver->deep_sleep_mode(dssdev);
+
+	if (!deep_sleep_mode_sup) {
+		gpio_set_value(mapphone_lcd_device.reset_gpio, 0);
+		msleep(1);
+	}
+
 	regulator_disable(display_regulator);
 }
 
@@ -195,23 +192,25 @@ static int mapphone_dt_get_dsi_panel_info(void)
 	PANELDBG("dt_get_dsi_panel_info()\n");
 
 /* Retrieve the panel information */
-	mapphone_lcd_device.phy.dsi.clk_lane = 1;
+
+	mapphone_lcd_device.phy.dsi.clk_lane = 3;
 
 	mapphone_lcd_device.phy.dsi.clk_pol = 0;
 
-	mapphone_lcd_device.phy.dsi.data1_lane = 2;
+	mapphone_lcd_device.phy.dsi.data1_lane = 1;
 
 	mapphone_lcd_device.phy.dsi.data1_pol = 0;
 
-	mapphone_lcd_device.phy.dsi.data2_lane = 3;
+	mapphone_lcd_device.phy.dsi.data2_lane = 2;
 
 	mapphone_lcd_device.phy.dsi.data2_pol = 0;
 
 	mapphone_lcd_device.reset_gpio = 136;
 
-	mapphone_lcd_device.panel.panel_id = 0x000a0001;
+	mapphone_lcd_device.panel.panel_id = 0x001a0001;
 
-	// disp_intf = 0x04;
+
+	/* disp_intf = 0x04; */
 	mapphone_lcd_device.phy.dsi.xfer_mode = OMAP_DSI_XFER_CMD_MODE;
 
 	PANELDBG("DT: clk_lane=%d clk_pos=%d  data1_lane=%d data1_pos=%d\n",
@@ -220,17 +219,14 @@ static int mapphone_dt_get_dsi_panel_info(void)
 		mapphone_lcd_device.phy.dsi.data1_lane,
 		mapphone_lcd_device.phy.dsi.data1_pol);
 
-	PANELDBG(" data2_lane= %d data2_pos= %d xfer_mode= %d \n",
+	PANELDBG(" data2_lane= %d data2_pos= %d xfer_mode= %d\n",
 		mapphone_lcd_device.phy.dsi.data2_lane,
 		mapphone_lcd_device.phy.dsi.data2_pol,
 		mapphone_lcd_device.phy.dsi.xfer_mode);
 
-	PANELDBG(" gpio_reset= %d panel_id= 0x%lx lp_clk= %ld ddr_clk= %ld\n",
+	PANELDBG(" gpio_reset= %d panel_id= 0x%lx\n",
 		mapphone_lcd_device.reset_gpio,
-		mapphone_lcd_device.panel.panel_id,
-		mapphone_lcd_device.phy.dsi.lp_clk_hz,
-		mapphone_lcd_device.phy.dsi.ddr_clk_hz);
-
+		mapphone_lcd_device.panel.panel_id);
 	return 0;
 }
 
@@ -304,8 +300,13 @@ static int mapphone_dt_get_tda19989_info(void)
 		mapphone_tda19989_data.int_gpio = *(u32 *)panel_prop;
 
 	panel_prop = of_get_property(panel_node, "cec_reg_name", NULL);
-	if (panel_prop != NULL)
-		strcpy(mapphone_tda19989_data.cec_reg_name, (char *)panel_prop);
+	if (panel_prop != NULL) {
+		strncpy(mapphone_tda19989_data.cec_reg_name,
+				(char *)panel_prop,
+				(TDA19989_CEC_REGULATOR_NAME_SIZE - 1));
+		mapphone_tda19989_data.cec_reg_name \
+			[TDA19989_CEC_REGULATOR_NAME_SIZE - 1] = '\0';
+	}
 
 	return 0;
 }
@@ -336,9 +337,7 @@ static int mapphone_dt_get_hdtv_info(void)
 static int mapphone_dt_get_feature_info(void)
 {
 	PANELDBG("dt_get_feature_info()\n");
-
 	mapphone_feature_hdmi = false;
-
 	return 0;
 }
 
@@ -394,9 +393,6 @@ void panel_print(void)
 			mapphone_lcd_device.phy.dsi.xfer_mode,
 			mapphone_lcd_device.panel.panel_id);
 
-		PANELDBG(" DT: lp_clk= %ld ddr_clk= %ld\n",
-			mapphone_lcd_device.phy.dsi.lp_clk_hz,
-			mapphone_lcd_device.phy.dsi.ddr_clk_hz);
 #if 0
 		PANELDBG(" DT: width= %d height= %d\n",
 			dt_panel_timings.x_res, dt_panel_timings.y_res);
@@ -597,15 +593,17 @@ void __init mapphone_panel_init(void)
 	ret = gpio_request(mapphone_lcd_device.reset_gpio, "display reset");
 	if (ret) {
 		printk(KERN_ERR "failed to get display reset gpio\n");
-		goto failed_reset;
+		goto error;
 	}
+
+	gpio_direction_output(mapphone_lcd_device.reset_gpio, 1);
 
 	if (mapphone_feature_hdmi) {
 		ret = gpio_request(mapphone_hdtv_mux_en_gpio,
 							"HDMI-mux-enable");
 		if (ret) {
 			printk(KERN_ERR "Failed hdtv mux en gpio request\n");
-			goto failed_mux_en;
+			goto failed_reg_req;
 		}
 		gpio_direction_output(mapphone_hdtv_mux_en_gpio, 0);
 		gpio_set_value(mapphone_hdtv_mux_en_gpio, 0);
@@ -632,10 +630,10 @@ void __init mapphone_panel_init(void)
 	return;
 
 failed_mux_sel:
-	gpio_free(mapphone_hdtv_mux_sel_gpio);
-failed_mux_en:
 	gpio_free(mapphone_hdtv_mux_en_gpio);
-failed_reset:
+failed_reg_req:
 	gpio_free(mapphone_lcd_device.reset_gpio);
+error:
+	return;
 }
 
