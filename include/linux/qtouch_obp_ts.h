@@ -2,7 +2,7 @@
  * include/linux/qtouch_obp_ts.h - platform/protocol data for Quantum touch IC
  *
  * Copyright (C) 2009 Google, Inc.
- * Copyright (C) 2009-2010 Motorola, Inc.
+  * Copyright (C) 2009 Motorola, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -24,20 +24,13 @@
 
 #define QTM_OBP_ID_INFO_ADDR		0
 
-#define QTM_OBP_BOOT_CMD_MASK		0xC0
-#define QTM_OBP_BOOT_VERSION_MASK	0x3F
-#define QTM_OBP_BOOT_WAIT_FOR_DATA	0x80
-#define QTM_OBP_BOOT_WAIT_ON_BOOT_CMD	0xC0
-#define QTM_OBP_BOOT_CRC_CHECK		0x02
-#define QTM_OBP_BOOT_CRC_FAIL		0x03
-#define QTM_OBP_BOOT_CRC_PASSED		0x04
-
-#define QTM_OBP_SLEEP_WAIT_FOR_BOOT	100
-#define QTM_OBP_SLEEP_WAIT_FOR_RESET	500
-#define QTM_OBP_SLEEP_WAIT_FOR_BACKUP	500
-#define QTM_OBP_SLEEP_WAIT_FOR_CKSUM	1000
+#define QTM_OBP_BOOT_WAIT_FOR_DATA		0x80
+#define QTM_OBP_BOOT_WAIT_ON_BOOT_CMD		0xC0
+#define QTM_OBP_BOOT_CRC_CHECK			0x02
+#define QTM_OBP_BOOT_CRC_FAIL			0x03
+#define QTM_OBP_BOOT_CRC_PASSED			0x04
 #define QTM_OBP_SLEEP_RESET_HOLD	20
-#define QTM_OBP_SLEEP_WAIT_FOR_HW_RESET	40
+#define QTM_OBP_SLEEP_WAIT_FOR_HW_RESET	50
 
 enum {
 	QTM_OBJ_RESERVED0		= 0,
@@ -69,10 +62,12 @@ enum {
 	QTM_OBJ_DEBUG_CTE_RANGE		= 26,
 	QTM_OBJ_PROCI_TWO_TOUCH_GESTURE_PROC = 27,
 	QTM_OBJ_SPT_CTE_CONFIG		= 28,
-	QTM_OBJ_NOISESUPPRESSION_1	= 36,
+	QTM_OBJ_NOISESUPPRESSION_1  = 36,
+	QTM_OBJ_DEBUG_DIAGNOSTIC        = 37,
+	QTM_OBJ_SPT_USERDATA       = 38,
 
 	/* Max number of objects currently defined */
-	QTM_OBP_MAX_OBJECT_NUM = QTM_OBJ_NOISESUPPRESSION_1 + 1,
+	QTM_OBP_MAX_OBJECT_NUM = QTM_OBJ_SPT_USERDATA + 1,
 };
 
 /* OBP structures as defined by the wire protocol. */
@@ -154,7 +149,28 @@ struct qtm_touch_keyarray_msg {
 	uint32_t		keystate;
 } __attribute__ ((packed));
 
+/* status message sent by the noise suppression - T22 */
+#define QTM_NOISE_SUPRS_PROC_STATUS_GCAFCHG	(1 << 4)
+#define QTM_NOISE_SUPRS_PROC_STATUS_FHERR	(1 << 3)
+#define QTM_NOISE_SUPRS_STATUS_GCAFERR		(1 << 2)
+#define QTM_NOISE_SUPRS_STATUS_FHCHG	(1)
+struct qtm_noise_suprs_msg {
+	uint8_t     report_id;
+	uint8_t     status;
+	uint8_t     gcaf_depth;
+	uint8_t     freq_index;
+} __attribute__ ((packed));
 
+/* status message sent by the self test - T25 */
+struct qtm_self_test_msg {
+  uint8_t     report_id;
+  uint8_t     result_code;
+  uint8_t     result_data_0;
+  uint8_t     result_data_1;
+  uint8_t     result_data_2;
+  uint8_t     result_data_3;
+  uint8_t     result_data_4;
+} __attribute__ ((packed));
 
 /*******************************/
 /**** configuration objects ****/
@@ -166,8 +182,8 @@ struct qtm_gen_cmd_proc {
 	uint8_t			backupnv;
 	uint8_t			calibrate;
 	uint8_t			reportall;
+	uint8_t			rsvd;
 	uint8_t			debugctrl;
-	uint8_t			diagnostic;
 } __attribute__ ((packed));
 
 /* GEN_POWERCONFIG_T7 */
@@ -180,13 +196,13 @@ struct qtm_gen_power_cfg {
 /* GEN_ACQUIRECONFIG_T8 */
 struct qtm_gen_acquire_cfg {
 	uint8_t			charge_time;       /* in 250ns */
-	uint8_t			atouch_drift;      /* in 200ms */
+	uint8_t			reserve0;          /* Reserved */
 	uint8_t			touch_drift;       /* in 200ms */
 	uint8_t			drift_susp;        /* in 200ms */
 	uint8_t			touch_autocal;     /* in 200ms */
 	uint8_t			sync;
-	uint8_t			atch_cal_suspend_time;
-	uint8_t			atch_cal_suspend_thres;
+	uint8_t			anti_cal_susp;
+	uint8_t			anti_cal_sthr;
 } __attribute__ ((packed));
 
 /* TOUCH_MULTITOUCHSCREEN_T9 */
@@ -215,10 +231,11 @@ struct qtm_touch_multi_cfg {
 	uint8_t			x_high_clip;
 	uint8_t			y_low_clip;
 	uint8_t			y_high_clip;
-	uint8_t			x_edge_ctrl;
-	uint8_t			x_edge_dist;
-	uint8_t			y_edge_ctrl;
-	uint8_t			y_edge_dist;
+	uint8_t			x_edge_ori;
+	uint8_t			x_edge_cdist;
+	uint8_t			y_edge_ori;;
+	uint8_t			y_edge_cdist;
+	uint8_t			max_pos_jump;
 } __attribute__ ((packed));
 
 /* TOUCH_KEYARRAY_T15 */
@@ -252,10 +269,10 @@ struct qtm_proci_linear_tbl_cfg {
 	uint8_t			y_segment[16];
 } __attribute__ ((packed));
 
-/* SPT_COMMSCONFIG _T18 */
-struct spt_comms_config_cfg {
+/* SPT_COM_CONFIG_T18*/
+struct qtm_spt_com_cfg {
 	uint8_t			ctrl;
-	uint8_t			command;
+	uint8_t			cmd;
 } __attribute__ ((packed));
 
 /* SPT_GPIOPWM_T19*/
@@ -291,17 +308,15 @@ struct qtm_proci_grip_suppression_cfg {
 	uint8_t			szthr2;
 	uint8_t			shpthr1;
 	uint8_t			shpthr2;
-	uint8_t			supextto;
 } __attribute__ ((packed));
 
 /* PROCG_NOISESUPPRESSION_T22 */
 struct qtm_procg_noise_suppression_cfg {
 	uint8_t			ctrl;
-	uint8_t			outlier_filter_len;
-	uint8_t			reserve0;
+	uint16_t		reserve0;
 	uint16_t		gcaf_upper_limit;
 	uint16_t		gcaf_lower_limit;
-	uint8_t			gcaf_low_count;
+	uint8_t			gcaf_num_active;
 	uint8_t			noise_threshold;
 	uint8_t			reserve1;
 	uint8_t			freq_hop_scale;
@@ -310,22 +325,7 @@ struct qtm_procg_noise_suppression_cfg {
 	uint8_t			burst_freq_2;
 	uint8_t			burst_freq_3;
 	uint8_t			burst_freq_4;
-	uint8_t			idle_gcaf_valid;
-} __attribute__ ((packed));
-
-/* TOUCH_PROXIMITY_T23 */
-struct qtm_touch_proximity_cfg {
-	uint8_t			ctrl;
-	uint8_t			x_origin;
-	uint8_t			y_origin;
-	uint8_t			x_size;
-	uint8_t			y_size;
-	uint8_t			reserve0;
-	uint8_t			blen;
-	uint16_t		tch_thresh;
-	uint8_t			tch_detect_int;
-	uint8_t			average;
-	uint16_t		rate;
+	uint8_t			gcaf_num_idle;
 } __attribute__ ((packed));
 
 /* PROCI_ONETOUCHGESTUREPROCESSOR_T24 */
@@ -354,8 +354,6 @@ struct qtm_spt_self_test_cfg {
 	uint16_t		low_signal_limit_0;
 	uint16_t		high_signal_limit_1;
 	uint16_t		low_signal_limit_1;
-	uint16_t		high_signal_limit_2;
-	uint16_t		low_signal_limit_2;
 } __attribute__ ((packed));
 
 /* PROCI_TWOTOUCHGESTUREPROCESSOR_T27 */
@@ -381,18 +379,21 @@ struct qtm_spt_cte_config_cfg {
 /* QTM_OBJ_NOISESUPPRESSION_1 */
 struct qtm_proci_noise1_suppression_cfg {
 	uint8_t			ctrl;
-	uint8_t			version;
-	uint8_t			atch_thr;
+	uint8_t			reserved;
+	uint8_t			atchthr;
 	uint8_t			duty_cycle;
-	uint8_t			drift_thr;
-	uint8_t			clamp_thr;
-	uint8_t			diff_thr;
-	uint8_t			adjustment;
-	uint16_t		average;
-	uint8_t			temp;
-	uint8_t			offset[168];
-	uint8_t			bad_chan[11];
-	uint8_t			x_short;
+} __attribute__ ((packed));
+
+/* QTM_OBJ_SPT_USERDATA_T38 */
+struct qtm_spt_userdata {
+	uint8_t			data_0;
+	uint8_t			data_1;
+	uint8_t			data_2;
+	uint8_t			data_3;
+	uint8_t			data_4;
+	uint8_t			data_5;
+	uint8_t			data_6;
+	uint8_t			data_7;
 } __attribute__ ((packed));
 
 /*******************************/
@@ -408,15 +409,14 @@ struct vkey {
 };
 
 struct virt_keys {
-	int			count;
 	struct vkey		*keys;
+	int			count;
+	int			start;
 };
 
 struct qtouch_key {
 	uint8_t				channel;
 	int				code;
-	int				x_coord;
-	int				y_coord;
 };
 
 struct qtouch_key_array {
@@ -457,41 +457,35 @@ struct qtouch_ts_platform_data {
 	uint32_t		fuzz_w;
 
 	uint8_t			boot_i2c_addr;
+	uint8_t			fw_version;
+	uint8_t			build_version;
+	uint8_t			base_fw_version;
 
 	int			(*hw_reset)(void);
+
+	struct virt_keys	vkeys;
 
 	/* TODO: allow multiple key arrays */
 	struct qtouch_key_array			key_array;
 
 	/* object configuration information from board */
-	struct qtm_gen_power_cfg			power_cfg;
-	struct qtm_gen_acquire_cfg			acquire_cfg;
-	struct qtm_touch_multi_cfg			multi_touch_cfg;
-	struct qtm_procg_sig_filter_cfg			sig_filter_cfg;
-	struct qtm_proci_linear_tbl_cfg			linear_tbl_cfg;
-	struct spt_comms_config_cfg			comms_config_cfg;
-	struct qtm_spt_gpio_pwm_cfg			gpio_pwm_cfg;
-	struct qtm_proci_grip_suppression_cfg		grip_suppression_cfg;
-	struct qtm_procg_noise_suppression_cfg		noise_suppression_cfg;
-	struct qtm_touch_proximity_cfg			touch_proximity_cfg;
-	struct qtm_proci_one_touch_gesture_proc_cfg	one_touch_gesture_proc_cfg;
-	struct qtm_spt_self_test_cfg			self_test_cfg;
+	struct qtm_gen_power_cfg		power_cfg;
+	struct qtm_gen_acquire_cfg		acquire_cfg;
+	struct qtm_touch_multi_cfg		multi_touch_cfg;
+	struct qtm_touch_keyarray_cfg   key_array_cfg;
+	struct qtm_procg_sig_filter_cfg		sig_filter_cfg;
+	struct qtm_proci_linear_tbl_cfg		linear_tbl_cfg;
+	struct qtm_proci_grip_suppression_cfg	    grip_suppression_cfg;
+	struct qtm_spt_com_cfg			        com_cfg;
+	struct qtm_spt_gpio_pwm_cfg			        gpio_pwm_cfg;
+	struct qtm_procg_noise_suppression_cfg	    noise_suppression_cfg;
+	struct qtm_proci_one_touch_gesture_proc_cfg	\
+					one_touch_gesture_proc_cfg;
+	struct qtm_spt_self_test_cfg			    self_test_cfg;
 	struct qtm_proci_two_touch_gesture_proc_cfg	two_touch_gesture_proc_cfg;
-	struct qtm_spt_cte_config_cfg			cte_config_cfg;
-	struct qtm_proci_noise1_suppression_cfg		noise1_suppression_cfg;
-
-	struct virt_keys	vkeys;
-};
-
-struct touch_fw_entry {
-	uint8_t		*image;
-	uint32_t	size;
-	uint8_t		family_id;
-	uint8_t		variant_id;
-	uint8_t		fw_version;
-	uint8_t		fw_build;
-	uint8_t		boot_version;
-	uint8_t		base_fw_version;
+	struct qtm_spt_cte_config_cfg			    cte_config_cfg;
+	struct qtm_proci_noise1_suppression_cfg     noise1_suppression_cfg;
+	struct qtm_spt_userdata     userdata;
 };
 
 #endif /* _LINUX_QTOUCH_OBP_TS_H */
