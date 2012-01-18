@@ -17,7 +17,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/spi/cpcap.h>
-#include <linux/leds-ld-cpcap.h>
 #include <linux/spi/spi.h>
 #include <plat/mcspi.h>
 #include <plat/gpio.h>
@@ -29,6 +28,8 @@
 #include <mach/dt_path.h>
 #include <asm/prom.h>
 #endif
+
+int mapphone_umts_model = 1;
 
 struct cpcap_spi_init_data mapphone_cpcap_spi_init[CPCAP_REG_SIZE + 1] = {
 	{CPCAP_REG_ASSIGN1,   0x0101},
@@ -202,8 +203,8 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	},
 	[CPCAP_VCAM] = {
 		.constraints = {
-			.min_uV			= 2900000,
-			.max_uV			= 2900000,
+			.min_uV			= 2800000,
+			.max_uV			= 2800000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 			.apply_uV		= 1,
 
@@ -304,7 +305,7 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 1800000,
 			.max_uV			= 1900000,
-			.valid_ops_mask		= 0,
+			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vwlan1_consumers),
 		.consumer_supplies	= cpcap_vwlan1_consumers,
@@ -526,8 +527,8 @@ static void regulator_init(void *p_data)
 		p_devs[p->id].constraints.always_on = p->always_on;
 		p_devs[p->id].constraints.boot_on = p->boot_on;
 		p_devs[p->id].constraints.apply_uV = p->apply_uV;
-		printk(KERN_INFO "CPCAP: Overwrite regulator init [%d] , min=%d, max=%d, mask=%d, alway_on=%d, boot_on=%d, apply_uV=%d  !\n",
-				p->id, p->min_uV, p->max_uV,  p->valid_ops_mask,  p->always_on,  p->boot_on, p->apply_uV);
+		printk(KERN_INFO "CPCAP: Overwrite regulator init [%d]!\n",
+				p->id);
 	} else {
 		printk(KERN_ERR "CPCAP: Too big cpcap regulator count!\n");
 	}
@@ -540,8 +541,8 @@ static void regulator_mode_init(void *p_data)
 
 	if (p->id < CPCAP_NUM_REGULATORS) {
 		p_devs[p->id] = p->data;
-		printk(KERN_INFO "CPCAP: Overwrite regulator mode [%d],  data =%d!\n",
-				p->id, p->data);
+		printk(KERN_INFO "CPCAP: Overwrite regulator mode [%d]!\n",
+				p->id);
 	} else {
 		printk(KERN_ERR "CPCAP: Too big cpcap regulator count!\n");
 	}
@@ -554,8 +555,8 @@ static void regulator_off_mode_init(void *p_data)
 
 	if (p->id < CPCAP_NUM_REGULATORS) {
 		p_devs[p->id] = p->data;
-		printk(KERN_INFO "CPCAP: Overwrite regulator off mode [%d], data =%d!\n",
-				p->id, p->data);
+		printk(KERN_INFO "CPCAP: Overwrite regulator off mode [%d]!\n",
+				p->id);
 	} else {
 		printk(KERN_ERR "CPCAP: Too big cpcap regulator count!\n");
 	}
@@ -582,16 +583,14 @@ static void cpcap_spi_init(void *p_data)
 
 		if (p_devs[i].reg == p->reg) {
 			p_devs[i].data = p->data;
-			
-			printk(KERN_INFO "CPCAP: Overwrite reg [%d] setting, Data =%d !\n",
-					p->reg, p->data);
+
+			printk(KERN_INFO "CPCAP: Overwrite reg [%d] setting!\n",
+					p->reg);
 			return;
 		}
 
 		if (i == CPCAP_REG_SIZE)
 			printk(KERN_ERR "CPCAP: Too big cpcap reg count!\n");
-
-		
 	}
 }
 
@@ -603,32 +602,7 @@ static void __init cpcap_of_init(void)
 	struct device_node *bp_node;
 	const void *bp_prop;
 	char *cpcap_bp_model = "CDMA";
-	
-	static struct omap_spi_init_entry cpcap_spiinit_data[] = {  
-		{CPCAP_REG_SDVSPLL,  0xDB04}, 
-		{CPCAP_REG_S4C1, 0x4034},
-		{CPCAP_REG_S4C2,  0x3434},
-         {CPCAP_REG_MDLC,  0x0000}   } ;
-	static struct omap_rgt_init_entry cpcap_reginitmode_data[] = {  
-          {CPCAP_VCSI,     1800000,    1800000,    0x8,    0x00,    0x01,     0x01},
-          {CPCAP_VDIG,    1875000,    1875000,    0x1,    0x01,    0x00,    0x01},
-          {CPCAP_VRF1,    2775000,    2775000,    0x9,    0x01,    0x00,    0x01},
-          {CPCAP_VRF2,    2775000,    2775000,    0x9,    0x01,    0x00,    0x01},
-          {CPCAP_VRFREF,    2775000,    2775000,    0x9,    0x01,    0x00,    0x01},
-          {CPCAP_VSIM,    1800000,    2900000,    0x9,    0x00,    0x00,    0x00},
-          {CPCAP_VSIMCARD,    1800000,    2900000,    0x9,    0x00,    0x00,    0x00}  } ;
-	static struct omap_rgt_mode_entry cpcap_regmode_data[] = {  
-          {CPCAP_VCSI,        0x0043},
-          {CPCAP_VDIG,        0x0082},
-          {CPCAP_VRF1,        0x0024},
-          {CPCAP_VRF2,        0x0001},
-          {CPCAP_VRFREF,        0x0023},
-          {CPCAP_VAUDIO,      0x0014},
-	     {CPCAP_VHVIO,	      0x0012},
-	     {CPCAP_VSIM,		0x0022},
-	     {CPCAP_VSIMCARD,	0x0480}  } ;			
-	static struct omap_rgt_mode_entry cpcap_regoffmode_data[] = {  {CPCAP_VCSI,  0x0041 } };
-					
+
 	bp_node = of_find_node_by_path(DT_PATH_CHOSEN);
 	if (bp_node) {
 		bp_prop = of_get_property(bp_node, DT_PROP_CHOSEN_BP, NULL);
@@ -641,26 +615,85 @@ static void __init cpcap_of_init(void)
 	if (strcmp(cpcap_bp_model, "UMTS") >= 0)
 		mapphone_cpcap_data.is_umts = 1;
 
-	count = 4;
-	printk(KERN_INFO "cpcap init size = %d\n", count);
-	for (i = 0; i < count; i++)
-		cpcap_spi_init((struct omap_spi_init_entry *)&cpcap_spiinit_data[i]);
+	node = of_find_node_by_path(DT_PATH_CPCAP);
+	if (node == NULL) {
+		printk(KERN_ERR
+				"Unable to read node %s from device tree!\n",
+				DT_PATH_CPCAP);
+		return;
+	}
 
-	count = 7;
-	printk(KERN_INFO "cpcap init size = %d\n", count);
-	for (i = 0; i < count; i++)
-		regulator_init((struct omap_rgt_init_entry *)&cpcap_reginitmode_data[i]);
+	prop = of_get_property(node, "bus_num", NULL);
+	if (prop) {
+		mapphone_spi_board_info[0].bus_num = *(u16 *)prop;
 
-	count = 9;
-	printk(KERN_INFO "cpcap init size = %d\n", count);
-	for (i = 0; i < count; i++)
-		regulator_mode_init((struct omap_rgt_mode_entry *)&cpcap_regmode_data[i]);
+		printk(KERN_INFO "CPCAP: overwriting bus_num with %d\n", \
+			mapphone_spi_board_info[0].bus_num);
+	} else
+		printk(KERN_INFO "CPCAP: using default bus_num %d\n", \
+			mapphone_spi_board_info[0].bus_num);
 
-	count = 1;
-	printk(KERN_INFO "cpcap init size = %d\n", count);
-	for (i = 0; i < count; i++)
-		regulator_off_mode_init((struct omap_rgt_mode_entry *)&cpcap_regoffmode_data[i]);
+	unit_size = sizeof(struct omap_spi_init_entry);
+	prop = of_get_property(node, DT_PROP_CPCAP_SPIINIT, &size);
+	if ((!prop) || (size % unit_size)) {
+		printk(KERN_ERR "Read property %s error!\n",
+				DT_PROP_CPCAP_SPIINIT);
+		of_node_put(node);
+		return;
+	}
 
+	count = size / unit_size;
+	printk(KERN_INFO "cpcap init size = %d\n", count);
+
+	for (i = 0; i < count; i++)
+		cpcap_spi_init((struct omap_spi_init_entry *)prop + i);
+
+	unit_size = sizeof(struct omap_rgt_init_entry);
+	prop = of_get_property(node, DT_PROP_CPCAP_RGTINIT, &size);
+	if ((!prop) || (size % unit_size)) {
+		printk(KERN_ERR "Read property %s error!\n",
+				DT_PROP_CPCAP_RGTINIT);
+		of_node_put(node);
+		return;
+	}
+
+	count = size / unit_size;
+	printk(KERN_INFO "cpcap init size = %d\n", count);
+
+	for (i = 0; i < count; i++)
+		regulator_init((struct omap_rgt_init_entry *)prop + i);
+
+	unit_size = sizeof(struct omap_rgt_mode_entry);
+	prop = of_get_property(node, DT_PROP_CPCAP_RGTMODE, &size);
+	if ((!prop) || (size % unit_size)) {
+		printk(KERN_ERR "Read property %s error!\n",
+				DT_PROP_CPCAP_RGTMODE);
+		of_node_put(node);
+		return;
+	}
+
+	count = size / unit_size;
+	printk(KERN_INFO "cpcap init size = %d\n", count);
+
+	for (i = 0; i < count; i++)
+		regulator_mode_init((struct omap_rgt_mode_entry *)prop + i);
+
+	unit_size = sizeof(struct omap_rgt_mode_entry);
+	prop = of_get_property(node, DT_PROP_CPCAP_RGTOFFMODE, &size);
+	if ((!prop) || (size % unit_size)) {
+		printk(KERN_ERR "Read property %s error!\n",
+				DT_PROP_CPCAP_RGTOFFMODE);
+		of_node_put(node);
+		return;
+	}
+
+	count = size / unit_size;
+	printk(KERN_INFO "cpcap init size = %d\n", count);
+
+	for (i = 0; i < count; i++)
+		regulator_off_mode_init((struct omap_rgt_mode_entry *)prop + i);
+
+	of_node_put(node);
 	return;
 }
 #endif
