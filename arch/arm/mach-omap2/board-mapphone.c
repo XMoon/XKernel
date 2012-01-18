@@ -1603,8 +1603,8 @@ static int initialize_i2c_bus_info
 	char prop_name[I2C_BUS_PROP_NAME_LEN];
 	static char *i2c_devices[] = {
 			"qtouch-obp-ts,lm3530_led,airc",
-			"akm8973,lis331dlh,kxtf9" ,
-			"HP_GEN_LENS,mt9p012,lm3554_led"
+			"akm8973,lis331dlh" ,
+			"HP_GEN_LENS,ov8810,bu9847,bd7885"
 	};
 
 	j = 0;
@@ -2772,7 +2772,7 @@ static void __init mapphone_init(void)
 	mapphone_als_init();
 	mapphone_panel_init();
 	mapphone_sensors_init();
-	/*mapphone_camera_init();*/
+	mapphone_camera_init();
 	mapphone_touch_init();
 	mapphone_audio_init();
 	usb_musb_init();
