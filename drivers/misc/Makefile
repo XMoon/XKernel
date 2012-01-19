@@ -43,7 +43,5 @@ obj-$(CONFIG_VIB_PWM)		+= vib-pwm.o
 obj-$(CONFIG_APANIC_MMC)	+= apanic_mmc.o
 obj-$(CONFIG_WL127X_TEST)	+= wl127x_test.o
 obj-$(CONFIG_MODEM_PM_DRIVER)   += modem_pm_driver/
-obj-$(CONFIG_SEC_DRIVER)        += sec/
 obj-$(CONFIG_NETMUX_DRIVER)     += netmux/
-obj-$(CONFIG_NETMUX_LINKDRIVER) += netmux_linkdriver/
 obj-$(CONFIG_SYSPANIC)		+= syspanic.o
