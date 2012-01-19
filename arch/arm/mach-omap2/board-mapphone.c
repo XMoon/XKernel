@@ -716,10 +716,16 @@ static struct omap_board_config_kernel mapphone_config[] __initdata = {
 
 static int mapphone_touch_reset(void)
 {
+	int touch_pwr_en_gpio = 0;
+#ifdef CONFIG_ARM_OF
+	touch_pwr_en_gpio = get_gpio_by_name("touch_pwr_en");
+#endif
 	gpio_direction_output(MAPPHONE_TOUCH_RESET_N_GPIO, 1);
 	msleep(1);
 	gpio_set_value(MAPPHONE_TOUCH_RESET_N_GPIO, 0);
 	msleep(QTM_OBP_SLEEP_RESET_HOLD);
+	if (touch_pwr_en_gpio >= 0)
+		gpio_set_value(touch_pwr_en_gpio, 1);
 	gpio_set_value(MAPPHONE_TOUCH_RESET_N_GPIO, 1);
 	msleep(QTM_OBP_SLEEP_WAIT_FOR_HW_RESET);
 
@@ -778,8 +784,6 @@ static struct i2c_board_info __initdata mapphone_i2c_bus2_master_board_info[];
 
 static void mapphone_touch_init(void)
 {
-	int touch_reset_n_gpio = MAPPHONE_TOUCH_RESET_N_GPIO;
-	int touch_int_gpio = MAPPHONE_TOUCH_INT_GPIO;
 #ifdef CONFIG_ARM_OF
 	struct device_node *touch_node;
 	const void *touch_prop;
