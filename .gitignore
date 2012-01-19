@@ -33,12 +33,15 @@
 *.xz
 *.patch
 *.gcno
+*.img
+*.rej
 
 #
 # Top-level generic files
 #
 tags
 TAGS
+zImage
 vmlinux
 System.map
 Module.markers
