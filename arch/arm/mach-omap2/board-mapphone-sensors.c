@@ -17,9 +17,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/platform_device.h>
+
+#include <linux/bu52014hfv.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/gpio_mapping.h>
 #include <linux/input.h>
 #include <linux/isl29030.h>
 #include <linux/sfh7743.h>
@@ -32,6 +37,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/vib-gpio.h>
 #include <linux/vib-pwm.h>
+#include <linux/interrupt.h>
 
 #ifdef CONFIG_ARM_OF
 #include <asm/prom.h>
@@ -71,12 +77,17 @@
 #define MAPPHONE_AKM8973_RESET_GPIO	28
 #define MAPPHONE_VIBRATOR_GPIO		181
 #define MAPPHONE_KXTF9_INT_GPIO		22
+#define PROXIMITY_SFH7743		0
+#define PROXIMITY_ISL29030		1
+#define PROXIMITY_INDEX			1
 
+static u8 prox_sensor_type = PROXIMITY_SFH7743;
 
 static char *prox_get_pwr_supply(void);
 
 static int vib_pwm_period;
 static int vib_pwm_duty;
+static unsigned long load_reg, cmp_reg;
 static int vib_pwm_enable_gpio;
 static int linear_vib_only;
 
@@ -130,25 +141,257 @@ static struct platform_device mapphone_vib_gpio = {
 };
 
 static struct omap_dm_timer *vib_pwm_timer;
+
+#ifdef CONFIG_VIB_PWM_SWEEP
+
+struct omap_pwm_time {
+	uint32_t	period;
+};
+
+struct omap_pwm_reg {
+	int		type;
+	uint32_t	load;
+	int		time;
+};
+
+#define PWM_PATTERN_LST	1
+#define PWM_PATTERN_SQR	2
+#define PWM_PATTERN_OFF	3
+
+struct omap_pwm_pattern {
+	struct omap_pwm_reg *head;
+	int size;
+	struct omap_pwm_reg *this;
+	struct hrtimer hrtimer;
+	int timer_running;
+	int int_enabled;
+};
+
+static struct omap_pwm_pattern *omap_pwm_pat_sweep;
+static DEFINE_SPINLOCK(pwm_pat_lock);
+
+static const struct omap_pwm_time omap_pwm_sweep[] = {
+	{3448}, {3448}, {3448}, {3448}, {3425}, {3425}, {3425}, {3425},
+	{3401}, {3401}, {3401}, {3401}, {3378}, {3378}, {3378}, {3378},
+	{3356}, {3356}, {3356}, {3356}, {3333}, {3333}, {3333}, {3333},
+	{3311}, {3311}, {3311}, {3311}, {3289}, {3289}, {3289}, {3289},
+	{3268}, {3268}, {3268}, {3268}, {3247}, {3247}, {3247}, {3247},
+	{3226}, {3226}, {3226}, {3226}, {3205}, {3205}, {3205}, {3205},
+	{3185}, {3185}, {3185}, {3185}, {3165}, {3165}, {3165}, {3165},
+	{3145}, {3145}, {3145}, {3145},
+};
+
+static const struct omap_pwm_time omap_pwm_sqr = { 3125 };
+
+#define OMAP_PWM_PATTERN_SQR_TIME	800
+
+static int lvib_pattern_load_next(void)
+{
+	struct omap_pwm_pattern *pwm_pat;
+	struct omap_pwm_reg *preg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pwm_pat_lock, flags);
+	if (!omap_pwm_pat_sweep) {
+		spin_unlock_irqrestore(&pwm_pat_lock, flags);
+		printk(KERN_ERR "%s omap_pwm_pattern is NULL\n", __func__);
+		return -1;
+	}
+	pwm_pat = omap_pwm_pat_sweep;
+	if (pwm_pat->this < pwm_pat->head ||
+		(pwm_pat->this >= pwm_pat->head + pwm_pat->size - 1))
+		pwm_pat->this = pwm_pat->head;
+	else
+		pwm_pat->this++;
+	preg = pwm_pat->this;
+
+	switch (preg->type) {
+	case PWM_PATTERN_LST:
+		if (!pwm_pat->timer_running) {
+			gpio_set_value(vib_pwm_enable_gpio, 1);
+			omap_dm_timer_set_int_enable(vib_pwm_timer,
+						OMAP_TIMER_INT_OVERFLOW);
+			pwm_pat->int_enabled = 1;
+			omap_dm_timer_set_load_start(vib_pwm_timer, 1,
+				-preg->load);
+			pwm_pat->timer_running = 1;
+		} else {
+			if (!pwm_pat->int_enabled) {
+				omap_dm_timer_set_int_enable(vib_pwm_timer,
+						OMAP_TIMER_INT_OVERFLOW);
+				pwm_pat->int_enabled = 1;
+			}
+			omap_dm_timer_update_load(vib_pwm_timer, -preg->load);
+		}
+		break;
+	case PWM_PATTERN_SQR:
+		omap_dm_timer_set_int_enable(vib_pwm_timer, 0);
+		pwm_pat->int_enabled = 0;
+		if (!pwm_pat->timer_running) {
+			gpio_set_value(vib_pwm_enable_gpio, 1);
+			omap_dm_timer_set_load_start(vib_pwm_timer, 1,
+				-preg->load);
+			pwm_pat->timer_running = 1;
+		} else
+			omap_dm_timer_update_load(vib_pwm_timer, -preg->load);
+		hrtimer_start(&pwm_pat->hrtimer,
+			ktime_set(pwm_pat->this->time / 1000,
+				(pwm_pat->this->time % 1000) * 1000000),
+			      HRTIMER_MODE_REL);
+		break;
+	case PWM_PATTERN_OFF:
+		gpio_set_value(vib_pwm_enable_gpio, 0);
+		omap_dm_timer_set_int_enable(vib_pwm_timer, 0);
+		pwm_pat->int_enabled = 0;
+		omap_dm_timer_stop(vib_pwm_timer);
+		pwm_pat->timer_running = 0;
+		hrtimer_start(&pwm_pat->hrtimer,
+			ktime_set(pwm_pat->this->time / 1000,
+				(pwm_pat->this->time % 1000) * 1000000),
+			      HRTIMER_MODE_REL);
+		break;
+	default:
+		break;
+	}
+	spin_unlock_irqrestore(&pwm_pat_lock, flags);
+	return 0;
+}
+
+static irqreturn_t omap_pwm_timer_intr(int irq, void *data)
+{
+	uint32_t status = omap_dm_timer_read_status(vib_pwm_timer);
+	omap_dm_timer_write_status(vib_pwm_timer, status);
+	if (status & OMAP_TIMER_INT_OVERFLOW)
+		lvib_pattern_load_next();
+	return IRQ_HANDLED;
+}
+
+static enum hrtimer_restart pwm_pat_hrtimer_func(struct hrtimer *hrtimer)
+{
+	lvib_pattern_load_next();
+	return HRTIMER_NORESTART;
+}
+
+/* vib_pwm_timer already requested */
+static int omap_timed_vib_pwm_init(void)
+{
+	struct omap_pwm_pattern *pwm_pat;
+	const struct omap_pwm_time *ptime;
+	struct omap_pwm_reg *preg;
+	int i, ret;
+	uint32_t rate;
+
+	if (omap_pwm_pat_sweep) {
+		printk(KERN_ERR "%s: %p already initialized\n",
+			__func__, omap_pwm_pat_sweep);
+		return 0;
+	}
+	pwm_pat = kzalloc(sizeof(struct omap_pwm_pattern), GFP_KERNEL);
+	if (!pwm_pat) {
+		printk(KERN_ERR "%s: alloc fail %d\n", __func__, __LINE__);
+		return -1;
+	}
+	pwm_pat->head = kzalloc(sizeof(struct omap_pwm_reg)
+		* (ARRAY_SIZE(omap_pwm_sweep) + 1), GFP_KERNEL);
+	if (!pwm_pat->head) {
+		printk(KERN_ERR "%s: alloc fail %d\n", __func__, __LINE__);
+		kfree(pwm_pat);
+		return -1;
+	}
+	pwm_pat->size = ARRAY_SIZE(omap_pwm_sweep) + 1;
+	rate = clk_get_rate(omap_dm_timer_get_fclk(vib_pwm_timer));
+	hrtimer_init(&pwm_pat->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pwm_pat->hrtimer.function = pwm_pat_hrtimer_func;
+	pwm_pat->this = 0;
+	pwm_pat->timer_running = 0;
+	pwm_pat->int_enabled = 0;
+
+	for (i = 0, ptime = omap_pwm_sweep, preg = pwm_pat->head;
+		i < ARRAY_SIZE(omap_pwm_sweep); i++, ptime++, preg++) {
+		preg->type = PWM_PATTERN_LST;
+		preg->load = rate * ptime->period / 1000000;
+	}
+	ptime = &omap_pwm_sqr;
+	preg->type = PWM_PATTERN_SQR;
+	preg->load = rate * ptime->period / 1000000;
+	preg->time = OMAP_PWM_PATTERN_SQR_TIME;
+
+	ret = request_irq(omap_dm_timer_get_irq(vib_pwm_timer),
+			 omap_pwm_timer_intr,
+			 IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+			 "vib_pwm", pwm_pat);
+	omap_dm_timer_set_int_enable(vib_pwm_timer, 0);
+
+	omap_pwm_pat_sweep = pwm_pat;
+	return ret;
+}
+
+static void omap_timed_vib_pwm_exit(void)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&pwm_pat_lock, flags);
+	if (omap_pwm_pat_sweep) {
+		kfree(omap_pwm_pat_sweep->head);
+		kfree(omap_pwm_pat_sweep);
+		omap_pwm_pat_sweep = NULL;
+	}
+	spin_unlock_irqrestore(&pwm_pat_lock, flags);
+}
+
+static void mapphone_lvibrator_pattern_on(int pattern)
+{
+	omap_dm_timer_enable(vib_pwm_timer);
+	omap_dm_timer_stop(vib_pwm_timer);
+	gpio_set_value(vib_pwm_enable_gpio, 0);
+	omap_dm_timer_set_pwm(vib_pwm_timer, 0, 1,
+		OMAP_TIMER_TRIGGER_OVERFLOW);
+	lvib_pattern_load_next();
+}
+
+static void mapphone_lvibrator_pattern_off(void)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&pwm_pat_lock, flags);
+	if (!omap_pwm_pat_sweep) {
+		spin_unlock_irqrestore(&pwm_pat_lock, flags);
+		printk(KERN_ERR "%s omap_pwm_pattern is NULL\n", __func__);
+		return;
+	}
+	omap_dm_timer_set_int_enable(vib_pwm_timer, 0);
+	hrtimer_cancel(&omap_pwm_pat_sweep->hrtimer);
+	omap_pwm_pat_sweep->this = 0;
+	omap_pwm_pat_sweep->timer_running = 0;
+	omap_pwm_pat_sweep->int_enabled = 0;
+	spin_unlock_irqrestore(&pwm_pat_lock, flags);
+}
+
+#else /* CONFIG_VIB_PWM_SWEEP */
+
+static inline int omap_timed_vib_pwm_init(void) { return 0; }
+static inline void mapphone_lvibrator_pattern_off(void) {}
+static inline void omap_timed_vib_pwm_exit(void) {}
+
+#endif /* CONFIG_VIB_PWM_SWEEP */
+
 static int mapphone_lvibrator_initialization(void)
 {
 	unsigned long load_reg, cmp_reg;
 	uint32_t timer_rate = 0;
 	int ret = 0;
 	vib_pwm_timer = omap_dm_timer_request_specific(11);
-	if (vib_pwm_timer == NULL)
+	if (vib_pwm_timer == NULL) {
 		ret = -ENODEV;
+		return ret;
+	}
 	timer_rate = clk_get_rate(omap_dm_timer_get_fclk(vib_pwm_timer));
 	load_reg = timer_rate * vib_pwm_period / 1000000;
 	cmp_reg = timer_rate * (vib_pwm_period -
 				vib_pwm_duty) / 1000000;
 
 	omap_dm_timer_set_source(vib_pwm_timer, OMAP_TIMER_SRC_32_KHZ);
-	omap_dm_timer_set_load(vib_pwm_timer, 1, -load_reg);
-	omap_dm_timer_set_match(vib_pwm_timer, 1, -cmp_reg);
-	omap_dm_timer_set_pwm(vib_pwm_timer, 0, 1,
-		       OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
-	omap_dm_timer_write_counter(vib_pwm_timer, -2);
+	ret = omap_timed_vib_pwm_init();
+	if (ret)
+		return ret;
 
 	ret = gpio_request(vib_pwm_enable_gpio, "glohap_en_omap");
 	if (ret) {
@@ -162,6 +405,8 @@ static int mapphone_lvibrator_initialization(void)
 
 static void mapphone_lvibrator_exit(void)
 {
+	mapphone_lvibrator_pattern_off();
+	omap_timed_vib_pwm_exit();
 	omap_dm_timer_stop(vib_pwm_timer);
 	omap_dm_timer_disable(vib_pwm_timer);
 	gpio_set_value(vib_pwm_enable_gpio, 0);
@@ -171,11 +416,18 @@ static void mapphone_lvibrator_power_on(void)
 {
 	gpio_set_value(vib_pwm_enable_gpio, 1);
 	omap_dm_timer_enable(vib_pwm_timer);
+	omap_dm_timer_set_int_enable(vib_pwm_timer, 0);
+	omap_dm_timer_set_load(vib_pwm_timer, 1, -load_reg);
+	omap_dm_timer_set_match(vib_pwm_timer, 1, -cmp_reg);
+	omap_dm_timer_set_pwm(vib_pwm_timer, 0, 1,
+		       OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
+	omap_dm_timer_write_counter(vib_pwm_timer, -2);
 	omap_dm_timer_start(vib_pwm_timer);
 }
 
 static void mapphone_lvibrator_power_off(void)
 {
+	mapphone_lvibrator_pattern_off();
 	omap_dm_timer_stop(vib_pwm_timer);
 	omap_dm_timer_disable(vib_pwm_timer);
 	gpio_set_value(vib_pwm_enable_gpio, 0);
@@ -187,6 +439,9 @@ static struct vib_pwm_platform_data vib_pwm_data = {
 	.exit = mapphone_lvibrator_exit,
 	.power_on = mapphone_lvibrator_power_on,
 	.power_off = mapphone_lvibrator_power_off,
+#ifdef CONFIG_VIB_PWM_SWEEP
+	.pattern = mapphone_lvibrator_pattern_on,
+#endif /* CONFIG_VIB_PWM_SWEEP */
 	.device_name = "lvibrator",
 };
 
@@ -238,8 +493,18 @@ static struct sfh7743_platform_data mapphone_sfh7743_data = {
 
 static void __init mapphone_sfh7743_init(void)
 {
-	gpio_request(MAPPHONE_PROX_INT_GPIO, "sfh7743 proximity int");
-	gpio_direction_input(MAPPHONE_PROX_INT_GPIO);
+	int proximity_gpio = MAPPHONE_PROX_INT_GPIO;
+#ifdef CONFIG_ARM_OF
+	proximity_gpio = get_gpio_by_name("proximity_int");
+	if (proximity_gpio < 0) {
+		printk(KERN_DEBUG
+		"cannot retrieve proximity_init from device tree\n");
+		proximity_gpio = MAPPHONE_PROX_INT_GPIO;
+	}
+	mapphone_sfh7743_data.gpio = proximity_gpio;
+#endif
+	gpio_request(proximity_gpio, "sfh7743 proximity int");
+	gpio_direction_input(proximity_gpio);
 	omap_cfg_reg(Y3_34XX_GPIO180);
 }
 
@@ -280,12 +545,14 @@ struct airc_platform_data mapphone_airc_data = {
 	.gpio = MAPPHONE_PROX_INT_GPIO,
 };
 
+#ifdef CONFIG_SENSORS_AIRC
 static void __init mapphone_airc_init(void)
 {
 	gpio_request(MAPPHONE_PROX_INT_GPIO, "airc proximity int");
 	gpio_direction_input(MAPPHONE_PROX_INT_GPIO);
 	omap_cfg_reg(Y3_34XX_GPIO180);
 }
+#endif
 
 static struct bu52014hfv_platform_data bu52014hfv_platform_data = {
 	.docked_north_gpio = MAPPHONE_HF_NORTH_GPIO,
@@ -585,19 +852,27 @@ static struct platform_device omap3430_hall_effect_dock = {
 
 static void mapphone_vibrator_init(void)
 {
-	gpio_direction_output(MAPPHONE_VIBRATOR_GPIO, 0);
+	int vibrator_gpio = MAPPHONE_VIBRATOR_GPIO;
+#ifdef CONFIG_ARM_OF
+	vibrator_gpio = get_gpio_by_name("vib_control_en");
+	if (vibrator_gpio < 0) {
+		printk(KERN_DEBUG
+			"cannot retrieve vib_control_en from device tree\n");
+		vibrator_gpio = MAPPHONE_VIBRATOR_GPIO;
+	}
+	mapphone_vib_gpio_data.gpio = vibrator_gpio;
+#endif
+	if (gpio_request(mapphone_vib_gpio_data.gpio, "vib_ctrl_en")) {
+		printk(KERN_ERR "vib_control_en GPIO request failed!\n");
+		return;
+	}
+
+	gpio_direction_output(vibrator_gpio, 0);
 	omap_cfg_reg(Y4_34XX_GPIO181);
 }
 
 static struct platform_device *mapphone_sensors[] __initdata = {
 	&kxtf9_platform_device,
-#ifdef CONFIG_INPUT_PROXIMITY_SFH7743
-	&sfh7743_platform_device,
-#endif
-#ifdef CONFIG_INPUT_ALS_IR_ISL29030
-	&isl29030_als_ir,
-#endif
-	&omap3430_hall_effect_dock,
 };
 
 static int mapphone_lvibrator_devtree(void)
@@ -681,6 +956,23 @@ static char *prox_get_pwr_supply(void)
 
 static void mapphone_hall_effect_init(void)
 {
+#ifdef CONFIG_ARM_OF
+	struct device_node *node;
+	const void *prop;
+
+	node = of_find_node_by_path(DT_HALLEFFECT_DOCK);
+
+	if (node == NULL)
+		return;
+
+	prop = of_get_property(node, DT_PROP_DEV_NORTH_IS_DESK, NULL);
+
+	if (prop)
+		bu52014hfv_platform_data.north_is_desk = *(u8 *)prop;
+
+	of_node_put(node);
+#endif
+
 	gpio_request(MAPPHONE_HF_NORTH_GPIO, "mapphone dock north");
 	gpio_direction_input(MAPPHONE_HF_NORTH_GPIO);
 	omap_cfg_reg(AG25_34XX_GPIO10);
@@ -688,6 +980,8 @@ static void mapphone_hall_effect_init(void)
 	gpio_request(MAPPHONE_HF_SOUTH_GPIO, "mapphone dock south");
 	gpio_direction_input(MAPPHONE_HF_SOUTH_GPIO);
 	omap_cfg_reg(B26_34XX_GPIO111);
+
+	platform_device_register(&omap3430_hall_effect_dock);
 }
 
 void __init mapphone_sensors_init(void)

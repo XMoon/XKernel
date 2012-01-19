@@ -21,9 +21,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>
-#include <mach/dmtimer.h>
-#include <mach/gpio.h>
-#include <mach/mux.h>
+#include <plat/dmtimer.h>
+#include <plat/gpio.h>
+#include <plat/mux.h>
 
 /* TODO: replace with correct header */
 #include "../staging/android/timed_output.h"

@@ -128,6 +128,7 @@
 /* HallEffect Node */
 #define DT_HALLEFFECT_DOCK		"/System@0/GPIO@0/HallEffect@0"
 #define DT_PROP_DEV_AVAILABLE	"device_available"
+#define DT_PROP_DEV_NORTH_IS_DESK	"north_is_desk"
 
 #define DT_HOME_LED		"/System@0/ButtonBacklight@0"
 #define DT_PROP_TABLET_BUTTON	"tablet_button_led"
