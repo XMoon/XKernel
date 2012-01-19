@@ -1680,8 +1680,8 @@ static void qtouch_ts_work_func(struct work_struct *work)
 
 	obj = find_object_rid(ts, msg->report_id);
 	if (!obj) {
-		/*pr_err("%s: Unknown object for report_id %d\n", __func__,
-		       msg->report_id);*/
+		pr_err("%s: Unknown object for report_id %d\n", __func__,
+		       msg->report_id);
 		goto done;
 	}
 
