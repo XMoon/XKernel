@@ -242,6 +242,12 @@ config LEDS_SHOLES
 	help
 	  This option enables support for LEDs on Sholes.
 
+config LEDS_SHOLEST
+	tristate "LED Support for Sholes Tablet device"
+	depends on LEDS_CLASS && MFD_CPCAP
+	help
+	  This option enables support for LEDs on Sholes Tablet.
+
 config LEDS_BUTTON
         tristate "LED Support for Button lighting device"
         depends on LEDS_CLASS
