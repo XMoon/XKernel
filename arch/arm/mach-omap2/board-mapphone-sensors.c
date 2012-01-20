@@ -989,6 +989,7 @@ void __init mapphone_sensors_init(void)
 	mapphone_kxtf9_init();
 #ifdef CONFIG_INPUT_PROXIMITY_SFH7743
 	mapphone_sfh7743_init();
+	platform_device_register(&sfh7743_platform_device);
 #endif
 #ifdef CONFIG_INPUT_ALS_IR_ISL29030
 	mapphone_isl29030_init();
