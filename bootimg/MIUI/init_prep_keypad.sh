@@ -1,8 +1,5 @@
 #!/system/bin/sh
 export PATH=/system/bin:$PATH
-if [ -e /system/usr/keylayout/sholes-keypad.kl ]; then
-	return
-fi
 
 if [ -e /proc/device-tree/System@0/Keypad@0/name ]; then
 	keypad_name=`cat /proc/device-tree/System@0/Keypad@0/name`
