@@ -24,6 +24,8 @@
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
 
+#include "low_batt_led.h"
+
 struct msg_ind_led_data {
 	struct led_classdev msg_ind_red_class_dev;
 	struct led_classdev msg_ind_green_class_dev;
@@ -127,6 +129,8 @@ static void msg_ind_red_set(struct led_classdev *led_cdev,
 	struct msg_ind_led_data *msg_ind_data =
 	    container_of(led_cdev, struct msg_ind_led_data,
 			 msg_ind_red_class_dev);
+        if (low_batt())
+          return;
 
 	msg_ind_set_rgb_brightness(msg_ind_data, LD_LED_RED, value);
 }
@@ -138,6 +142,9 @@ static void msg_ind_green_set(struct led_classdev *led_cdev,
 	    container_of(led_cdev, struct msg_ind_led_data,
 			 msg_ind_green_class_dev);
 
+        if (low_batt())
+          return;
+
 	msg_ind_set_rgb_brightness(msg_ind_data, LD_LED_GREEN, value);
 }
 
@@ -147,6 +154,9 @@ static void msg_ind_blue_set(struct led_classdev *led_cdev,
 	struct msg_ind_led_data *msg_ind_data =
 	    container_of(led_cdev, struct msg_ind_led_data,
 			 msg_ind_blue_class_dev);
+
+        if (low_batt())
+          return;
 
 	msg_ind_set_rgb_brightness(msg_ind_data, LD_LED_BLUE, value);
 }

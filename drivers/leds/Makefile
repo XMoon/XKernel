@@ -39,7 +39,8 @@ obj-$(CONFIG_LEDS_SHOLES)		+= leds-ld-cpcap-disp.o \
 					   leds-ld-cpcap-rgb.o \
 					   leds-ld-cpcap-kpad.o
 obj-$(CONFIG_LEDS_SHOLEST)		+= leds-ld-cpcap-disp.o \
-					   leds-ld-cpcap-rgb.o
+					   leds-ld-cpcap-rgb.o \
+                                           low_batt_led.o
 obj-$(CONFIG_KEYBOARD_ADP5588)          += leds-ld-adp5588-kpad.o
 obj-$(CONFIG_LEDS_LM3530)		+= led-lm3530.o
 obj-$(CONFIG_LEDS_LM3554)		+= led-cpcap-lm3554.o
