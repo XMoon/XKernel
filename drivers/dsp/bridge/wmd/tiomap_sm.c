@@ -33,6 +33,17 @@ static inline unsigned int fifo_full(void __iomem *mbox_base, int mbox_id)
 	return __raw_readl(mbox_base + MAILBOX_FIFOSTATUS(mbox_id)) & 0x1;
 }
 
+static int dsp_recovery( void )
+{
+  char *argv[] = { "/system/bin/setprop", "hw.dspbridge.needs_recovery", "1", NULL };
+  static char *envp[] = {
+        "HOME=/",
+        "TERM=linux",
+        "PATH=/sbin:/system/bin:/system/xbin", NULL };
+
+  return call_usermodehelper( argv[0], argv, envp, UMH_WAIT_EXEC );
+}
+
 DSP_STATUS CHNLSM_EnableInterrupt(struct WMD_DEV_CONTEXT *pDevContext)
 {
 	DSP_STATUS status = DSP_SOK;
@@ -151,6 +162,7 @@ DSP_STATUS CHNLSM_InterruptDSP2(struct WMD_DEV_CONTEXT *pDevContext,
 	}
 	if ((cnt == 10) && (time_expired)) {
 		printk(KERN_ERR "dspbridge: Mailbox was not empty after %d trials , no message written !!!\n", cnt);
+		dsp_recovery();
 		return WMD_E_TIMEOUT;
 	}
 	DBG_Trace(DBG_LEVEL3, "writing %x to Mailbox\n",
