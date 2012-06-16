@@ -468,6 +468,10 @@ static int omapvout_dss_perform_vrfb_dma(struct omapvout_device *vout,
 
 		w = vout->crop.width;
 		h = vout->crop.height;
+		if (vrfb->decimate_src) {
+			w = w / 2;
+			h = h / 2;
+		}
 
 		is_yuv = (fmt == V4L2_PIX_FMT_YUYV || fmt == V4L2_PIX_FMT_UYVY);
 		bytespp = omapvout_dss_format_bytespp(vout->pix.pixelformat);
@@ -482,6 +486,29 @@ static int omapvout_dss_perform_vrfb_dma(struct omapvout_device *vout,
 
 		vrfb->en = (w * bytespp) / 4; /* 32 bit ES */
 		vrfb->fn = h;
+
+		if (!vrfb->decimate_src) {
+			/* Maintain the previous settings to reduce risk */
+			vrfb->src_mode = OMAP_DMA_AMODE_POST_INC;
+			vrfb->src_ei = 0;
+			vrfb->src_fi = 0;
+		} else {
+			/* Decimate source frame by 2 */
+
+			/* Need to use double indexed DMA */
+			vrfb->src_mode = OMAP_DMA_AMODE_DOUBLE_IDX;
+			/* Skip every other word */
+			vrfb->src_ei = 4 + 1;
+			/* Skip every other line.
+			 * - Mult width by 2 to get real input frame line
+			 *   width for the skip.
+			 * - Add 4 to account for the trailing word  of the
+			 *   previous line that needs still needs to be
+			 *   skipped.
+			 */
+			vrfb->src_fi = (w * bytespp * 2) + 4 + 1;
+		}
+
 		vrfb->dst_ei = 1;
 		if (fmt == V4L2_PIX_FMT_YUYV || fmt == V4L2_PIX_FMT_UYVY) {
 			vrfb->dst_fi = (OMAP_VRFB_LINE_LEN * bytespp * 2)
@@ -497,9 +524,9 @@ static int omapvout_dss_perform_vrfb_dma(struct omapvout_device *vout,
 
 	omap_set_dma_transfer_params(vrfb->dma_ch, OMAP_DMA_DATA_TYPE_S32,
 				vrfb->en, vrfb->fn, OMAP_DMA_SYNC_ELEMENT,
-				vrfb->dma_id, 0x0);
-	omap_set_dma_src_params(vrfb->dma_ch, 0, OMAP_DMA_AMODE_POST_INC,
-				src_paddr, 0, 0);
+				vrfb->dma_id, 0);
+	omap_set_dma_src_params(vrfb->dma_ch, 0, vrfb->src_mode,
+				src_paddr, vrfb->src_ei, vrfb->src_fi);
 	omap_set_dma_src_burst_mode(vrfb->dma_ch, OMAP_DMA_DATA_BURST_16);
 	omap_set_dma_dest_params(vrfb->dma_ch, 0, OMAP_DMA_AMODE_DOUBLE_IDX,
 				dst_paddr, vrfb->dst_ei, vrfb->dst_fi);
@@ -550,13 +577,18 @@ static int omapvout_dss_update_overlay(struct omapvout_device *vout,
 		o_info.height = vout->crop.height;
 	}
 
+	if (vrfb->decimate_src) { /* Decimate source frame by 2 */
+		o_info.width = o_info.width / 2;
+		o_info.height = o_info.height / 2;
+	}
+
 	o_info.pos_x = vout->win.w.left & ~1;
 	o_info.pos_y = vout->win.w.top & ~1;
 	o_info.out_width = vout->win.w.width;
 	o_info.out_height = vout->win.w.height;
 	o_info.color_mode = omapvout_dss_color_mode(vout->pix.pixelformat);
 	o_info.rotation_type = OMAP_DSS_ROT_VRFB;
-	o_info.rotation = vout->rotation; // Rotation value, not buffer index
+	o_info.rotation = vout->rotation; /* Rotation value, not buffer index */
 	o_info.mirror = false;
 
 	rc = ovly->set_overlay_info(ovly, &o_info);
@@ -792,6 +824,7 @@ int omapvout_dss_open(struct omapvout_device *vout, u16 *disp_w, u16 *disp_h)
 	INIT_WORK(&vout->dss->work, omapvout_dss_perform_update);
 
 	vout->dss->enabled = false;
+	vout->dss->vrfb.decimate_src = false;
 
 failed:
 	return rc;
@@ -901,5 +934,15 @@ int omapvout_dss_update(struct omapvout_device *vout)
 	}
 
 	return 0;
+}
+
+bool omapvout_dss_get_decimate(struct omapvout_device *vout)
+{
+	return vout->dss->vrfb.decimate_src;
+}
+
+void omapvout_dss_set_decimate(struct omapvout_device *vout, bool enable)
+{
+	vout->dss->vrfb.decimate_src = enable;
 }
 

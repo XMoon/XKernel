@@ -26,6 +26,8 @@
 #include <asm/atomic.h>
 #include <asm/device.h>
 
+#define BUS_ID_SIZE    20
+
 struct device;
 struct device_private;
 struct device_driver;

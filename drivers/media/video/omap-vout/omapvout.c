@@ -35,6 +35,7 @@
 #include "omapvout-vbq.h"
 #include "omapvout-bp.h"
 
+#define V4L2_CID_PRIVATE_DECIMATE_BY_2		(V4L2_CID_PRIVATE_BASE + 0x921)
 #define MODULE_NAME "omapvout"
 
 /* list of image formats supported by OMAP2 video pipelines */
@@ -994,6 +995,10 @@ static int omapvout_vidioc_g_ctrl(struct file *file, void *priv,
 	case V4L2_CID_BG_COLOR:
 		ctrl->value = vout->bg_color;
 		break;
+	case V4L2_CID_PRIVATE_DECIMATE_BY_2:
+		ctrl->value = (int) omapvout_dss_get_decimate(vout);
+		break;
+
 	default:
 		rc = -EINVAL;
 		break;
@@ -1048,6 +1053,10 @@ static int omapvout_vidioc_s_ctrl(struct file *file, void *priv,
 			vout->bg_color = v;
 		}
 		break;
+	case V4L2_CID_PRIVATE_DECIMATE_BY_2:
+		omapvout_dss_set_decimate(vout, ((v) ? true : false));
+		break;
+
 	default:
 		rc = -EINVAL;
 		break;
@@ -1094,6 +1103,7 @@ static int omapvout_vidioc_s_fbuf(struct file *file, void *priv,
 				struct v4l2_framebuffer *a)
 {
 	struct omapvout_device *vout = priv;
+	int rc = 0;
 
 	/* OMAP DSS doesn't support SRC & DST colorkey together */
 	if ((a->flags & V4L2_FBUF_FLAG_CHROMAKEY) &&
@@ -1113,6 +1123,7 @@ static int omapvout_vidioc_s_fbuf(struct file *file, void *priv,
 
 	vout->fbuf.flags = a->flags;
 
+failed:
 	mutex_unlock(&vout->mtx);
 
 	return 0;
@@ -1161,7 +1172,7 @@ static struct video_device omapvout_devdata = {
 	.name = MODULE_NAME,
 	.fops = &omapvout_fops,
 	.ioctl_ops = &omapvout_ioctl_ops,
-	.vfl_type = VFL_TYPE_GRABBER,
+	.vfl_type = VID_TYPE_OVERLAY | VID_TYPE_CHROMAKEY,
 	.release = video_device_release,
 	.minor = -1,
 };

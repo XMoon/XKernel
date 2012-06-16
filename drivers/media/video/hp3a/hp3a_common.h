@@ -247,8 +247,7 @@ struct hp3a_statistics {
  * context specific data.
  **/
 struct hp3a_context {
-	u8 initialized;
-	u8 hw_initialized;
+	int initialized;
 	int default_v4l2_dev;
 	int v4l2_streaming;
 	int update_hardpipe;
@@ -261,6 +260,7 @@ struct hp3a_context {
 	int raw_frequency;
 	int raw_cap_sched_count;
 	int isp_ctx_saved;
+	int sensor_req_reset_count;
 	u8 exposure_sync;
 	u8 gain_sync;
 	u32 hist_bin_size;
