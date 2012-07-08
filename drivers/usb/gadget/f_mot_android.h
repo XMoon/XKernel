@@ -23,7 +23,7 @@
 #define ETH_TYPE_FLAG         0x04
 #define MTP_TYPE_FLAG         0x08
 #define ACM_TYPE_FLAG         0x10
-#define CDROM_TYPE_FLAG       0x20
+#define RNDIS_TYPE_FLAG       0x80
 
 void usb_interface_enum_cb(int flag);
 void usb_data_transfer_callback(void);
