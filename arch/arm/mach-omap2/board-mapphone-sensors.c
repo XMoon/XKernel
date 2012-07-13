@@ -986,7 +986,7 @@ static void mapphone_hall_effect_init(void)
 
 void __init mapphone_sensors_init(void)
 {
-	mapphone_kxtf9_init();
+	//mapphone_kxtf9_init();
 #ifdef CONFIG_INPUT_PROXIMITY_SFH7743
 	mapphone_sfh7743_init();
 	platform_device_register(&sfh7743_platform_device);
