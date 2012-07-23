@@ -593,7 +593,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		mutex_lock(&dbs_mutex);
 		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
 		dbs_enable--;
-		mutex_destroy(&this_dbs_info->timer_mutex);
+		//mutex_destroy(&this_dbs_info->timer_mutex);
 
 		/*
 		 * Stop the timerschedule work, when this governor
