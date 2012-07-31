@@ -31,9 +31,7 @@
 
 #include "u_ether.h"
 #include "rndis.h"
-#ifdef CONFIG_USB_MOT_ANDROID
-#include "f_mot_android.h"
-#endif
+
 
 /*
  * This function is an RNDIS Ethernet port -- a Microsoft protocol that's
@@ -189,26 +187,6 @@ static struct usb_interface_descriptor rndis_data_intf __initdata = {
 	/* .iInterface = DYNAMIC */
 };
 
-static struct usb_interface_assoc_descriptor
-rndis_iad_descriptor = {
-	.bLength =		sizeof rndis_iad_descriptor,
-	.bDescriptorType =	USB_DT_INTERFACE_ASSOCIATION,
-	
-	.bFirstInterface =	0, /* XXX, hardcoded */
-	.bInterfaceCount = 	2,	// control + data
-	/* "Wireless" RNDIS; auto-detected by Windows */
-#ifdef CONFIG_USB_ANDROID_RNDIS_WCEIS
-	.bFunctionClass =	USB_CLASS_WIRELESS_CONTROLLER,
-	.bFunctionSubClass =	0x01,
-	.bFunctionProtocol =	0x03,
-#else
-	.bFunctionClass =	USB_CLASS_COMM,
-	.bFunctionSubClass =	USB_CDC_SUBCLASS_ETHERNET,
-	.bFunctionProtocol =	USB_CDC_PROTO_VENDOR,
-#endif
-	/* .iFunction = DYNAMIC */
-};
-
 /* full speed support: */
 
 static struct usb_endpoint_descriptor fs_notify_desc __initdata = {
@@ -238,7 +216,6 @@ static struct usb_endpoint_descriptor fs_out_desc __initdata = {
 };
 
 static struct usb_descriptor_header *eth_fs_function[] __initdata = {
-	(struct usb_descriptor_header *) &rndis_iad_descriptor,
 	/* control interface matches ACM, not Ethernet */
 	(struct usb_descriptor_header *) &rndis_control_intf,
 	(struct usb_descriptor_header *) &header_desc,
@@ -283,7 +260,6 @@ static struct usb_endpoint_descriptor hs_out_desc __initdata = {
 };
 
 static struct usb_descriptor_header *eth_hs_function[] __initdata = {
-	(struct usb_descriptor_header *) &rndis_iad_descriptor,
 	/* control interface matches ACM, not Ethernet */
 	(struct usb_descriptor_header *) &rndis_control_intf,
 	(struct usb_descriptor_header *) &header_desc,
@@ -303,7 +279,6 @@ static struct usb_descriptor_header *eth_hs_function[] __initdata = {
 static struct usb_string rndis_string_defs[] = {
 	[0].s = "RNDIS Communications Control",
 	[1].s = "RNDIS Ethernet Data",
-	[2].s = "RNDIS",
 	{  } /* end of list */
 };
 
@@ -437,11 +412,8 @@ rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	 */
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_SEND_ENCAPSULATED_COMMAND:
-#ifdef CONFIG_USB_MOT_ANDROID
-		if (w_value)
-#else
-		if (w_value || w_index != rndis->ctrl_id)
-#endif
+		if (w_length > req->length || w_value
+				|| w_index != rndis->ctrl_id)
 			goto invalid;
 		/* read the request; process it later */
 		value = w_length;
@@ -452,11 +424,7 @@ rndis_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_GET_ENCAPSULATED_RESPONSE:
-#ifdef CONFIG_USB_MOT_ANDROID
-		if (w_value)
-#else
 		if (w_value || w_index != rndis->ctrl_id)
-#endif
 			goto invalid;
 		else {
 			u8 *buf;
@@ -561,12 +529,6 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	} else
 		goto fail;
 
-#ifdef CONFIG_USB_MOT_ANDROID
-	printk(KERN_INFO "enter rndis_set_alt usb_interface_enum_cb\n");
-		
-	usb_interface_enum_cb(RNDIS_TYPE_FLAG);
-#endif
-	
 	return 0;
 fail:
 	return -EINVAL;
@@ -638,13 +600,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	rndis->ctrl_id = status;
 
-	rndis_iad_descriptor.bFirstInterface = status;
-	
-#ifdef CONFIG_USB_MOT_ANDROID
-	rndis_union_desc.bMasterInterface0 = 0;
-#else
-	rndis_union_desc.bMasterInterface0 = status;
-#endif
+	rndis_control_intf.bInterfaceNumber = status;
 	rndis_union_desc.bMasterInterface0 = status;
 
 	status = usb_interface_id(c, f);
@@ -653,11 +609,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis->data_id = status;
 
 	rndis_data_intf.bInterfaceNumber = status;
-#ifdef CONFIG_USB_MOT_ANDROID
-	rndis_union_desc.bSlaveInterface0 = 1;
-#else
 	rndis_union_desc.bSlaveInterface0 = status;
-#endif
 
 	status = -ENODEV;
 
@@ -859,13 +811,6 @@ int __init rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 			return status;
 		rndis_string_defs[1].id = status;
 		rndis_data_intf.iInterface = status;
-		
-		/* IAD iFunction label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		rndis_string_defs[2].id = status;
-		rndis_iad_descriptor.iFunction = status;
 	}
 
 	/* allocate and initialize one new instance */

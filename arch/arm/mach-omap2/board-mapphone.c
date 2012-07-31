@@ -129,8 +129,6 @@
 #ifdef CONFIG_USB_MOT_ANDROID
 #define MAPPHONE_PHONE_PORTAL_PRODUCT_ID               0x41D8
 #define MAPPHONE_PHONE_PORTAL_ADB_PRODUCT_ID           0x41DA
-#define MAPPHONE_PHONE_PORTAL_LITE_PRODUCT_ID          0x41D5
-#define MAPPHONE_PHONE_PORTAL_LITE_ADB_PRODUCT_ID      0x41ED
 #define MAPPHONE_MTP_PRODUCT_ID                        0x41D6
 #define MAPPHONE_MTP_ADB_PRODUCT_ID                    0x41DC
 #endif
@@ -323,19 +321,6 @@ static char *usb_functions_all[] = {
 };
 
 #ifdef CONFIG_USB_MOT_ANDROID
-static char* usb_functions_phone_portal_lite[] = 
-{
-	"acm",
-	"usbnet",
-};
-
-static char* usb_functions_phone_portal_lite_adb[] = 
-{
-	"acm",
-	"usbnet",
-	"adb",
-};
-
 static char *usb_functions_phone_portal[] = {
 	"acm",
 	"usbnet",
@@ -371,16 +356,6 @@ static struct android_usb_product usb_products[] = {
 		.product_id     = MAPPHONE_PHONE_PORTAL_ADB_PRODUCT_ID,
 		.num_functions  = ARRAY_SIZE(usb_functions_phone_portal_adb),
 		.functions      = usb_functions_phone_portal_adb,
-	},
-	{
-		.product_id     = MAPPHONE_PHONE_PORTAL_LITE_PRODUCT_ID,
-		.num_functions  = ARRAY_SIZE(usb_functions_phone_portal_lite),
-		.functions      = usb_functions_phone_portal_lite,
-	},
-	{
-		.product_id     = MAPPHONE_PHONE_PORTAL_LITE_ADB_PRODUCT_ID,
-		.num_functions  = ARRAY_SIZE(usb_functions_phone_portal_lite_adb),
-		.functions      = usb_functions_phone_portal_lite_adb,
 	},
 	{
 		.product_id     = MAPPHONE_MTP_PRODUCT_ID,

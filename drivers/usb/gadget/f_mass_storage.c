@@ -138,6 +138,11 @@ static const char shortname[] = DRIVER_NAME;
 
 
 #ifdef CONFIG_USB_MOT_ANDROID
+static int cdrom_enable ;
+
+module_param_named(cdrom, cdrom_enable, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(cdrom, "true to emulate cdrom instead of disk");
+
 /* SCSI device types */
 #define TYPE_DISK      0x00
 #define TYPE_CDROM     0x05
@@ -1291,7 +1296,7 @@ static int do_inquiry(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 
 	memset(buf, 0, 8);	/* Non-removable, direct-access device */
 #ifdef CONFIG_USB_MOT_ANDROID
-	buf[0] = TYPE_DISK;
+	buf[0] = (cdrom_enable ? TYPE_CDROM : TYPE_DISK);
 #endif
 
 	buf[1] = 0x80;	/* set removable bit */
@@ -2022,6 +2027,30 @@ static int do_scsi_command(struct fsg_dev *fsg)
 			reply = do_read_capacity(fsg, bh);
 		break;
 
+#ifdef CONFIG_USB_MOT_ANDROID
+	case SC_READ_HEADER:
+		if (!cdrom_enable)
+			goto unknown_cmnd;
+			fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+			reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+			(3 << 7) | (0x1f << 1), 1,
+		"READ HEADER");
+		if (reply == 0)
+			reply = do_read_header(fsg, bh);
+		break;
+
+	case SC_READ_TOC:
+		if (!cdrom_enable)
+			goto unknown_cmnd;
+		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
+		reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+		(7 << 6) | (1 << 1), 1,
+		"READ TOC");
+		if (reply == 0)
+			reply = do_read_toc(fsg, bh);
+		break;
+#endif
+
 	case SC_READ_FORMAT_CAPACITIES:
 		fsg->data_size_from_cmnd = get_be16(&fsg->cmnd[7]);
 		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
@@ -2119,6 +2148,9 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		/* Fall through */
 
 	default:
+#ifdef CONFIG_USB_MOT_ANDROID
+unknown_cmnd:
+#endif
 		fsg->data_size_from_cmnd = 0;
 		sprintf(unknown, "Unknown x%02x", fsg->cmnd[0]);
 		if ((reply = check_command(fsg, fsg->cmnd_size,
@@ -2615,6 +2647,16 @@ static int open_backing_file(struct fsg_dev *fsg, struct lun *curlun,
 	num_sectors = size >> 9;	/* File size in 512-byte sectors */
 #ifdef CONFIG_USB_MOT_ANDROID
 	min_sectors = 1;
+	if (cdrom_enable) {
+		num_sectors &= ~3;      /* Reduce to a multiple of 2048 */
+		min_sectors = 300 * 4;  /* Smallest track is 300 frames */
+		if (num_sectors >= 256 * 60 * 75 * 4) {
+			num_sectors = (256 * 60 * 75 - 1) * 4;
+			LINFO(curlun, "file too big: %s\n", filename);
+			LINFO(curlun, "using only first %d blocks\n",
+						(int) num_sectors);
+		}
+	}
 	if (num_sectors < min_sectors) {
 #else
 	if (num_sectors == 0) {
@@ -2873,7 +2915,14 @@ fsg_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
+#ifdef CONFIG_USB_MOT_ANDROID
+		if (cdrom_enable)
+			curlun->ro = 1;
+		else
+			curlun->ro = 0;
+#else
 		curlun->ro = 0;
+#endif
 		curlun->dev.release = lun_release;
 		/* use "usb_mass_storage" platform device as parent if available */
 		if (fsg->pdev)
@@ -3013,7 +3062,7 @@ static int fsg_function_set_alt(struct usb_function *f,
 	do_set_interface(fsg, 0);
 	raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
 #ifdef CONFIG_USB_MOT_ANDROID
-	usb_interface_enum_cb(MSC_TYPE_FLAG);
+	usb_interface_enum_cb(cdrom_enable ? CDROM_TYPE_FLAG : MSC_TYPE_FLAG);
 #endif
 	return 0;
 }
