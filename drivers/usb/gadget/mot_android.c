@@ -65,19 +65,9 @@ MODULE_VERSION("1.0");
 static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by platform data */
-#define MAPPHONE_VENDOR_ID                             0x22B8
-#define MAPPHONE_FACTORY_PRODUCT_ID                    0x41D4
-#define MAPPHONE_PRODUCT_ID                            0x41D9
-#define MAPPHONE_ADB_PRODUCT_ID                        0x41DB
-#define MAPPHONE_RNDIS_PRODUCT_ID                      0x41E4
-#define MAPPHONE_RNDIS_ADB_PRODUCT_ID                  0x41E5
-#define MAPPHONE_PHONE_PORTAL_PRODUCT_ID               0x41D8
-#define MAPPHONE_PHONE_PORTAL_ADB_PRODUCT_ID           0x41DA
-#define MAPPHONE_PHONE_PORTAL_LITE_PRODUCT_ID          0x41D5
-#define MAPPHONE_PHONE_PORTAL_LITE_ADB_PRODUCT_ID      0x41ED
-#define MAPPHONE_MTP_PRODUCT_ID                        0x41D6
-#define MAPPHONE_MTP_ADB_PRODUCT_ID                    0x41DC
-#define MAPPHONE_ACM_PRODUCT_ID                        0x6422
+#define VENDOR_ID               0x22b8
+#define PRODUCT_ID              0x41da
+#define ADB_PRODUCT_ID          0x41da
 
 #define MAX_DEVICE_TYPE_NUM   20
 #define MAX_DEVICE_NAME_SIZE  30
@@ -94,39 +84,45 @@ struct device_pid_vid {
 	int protocol;
 };
 
-static struct device_pid_vid mot_android_vid_pid[MAX_DEVICE_TYPE_NUM] = 
-{
-	{"msc", MSC_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_PRODUCT_ID, 
-	"Motorola Config 14", USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
-	{"msc_adb", MSC_TYPE_FLAG | ADB_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_ADB_PRODUCT_ID,
-	"Motorola Config 42", USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
-	
-	{"mtp", MTP_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_MTP_PRODUCT_ID, 
-	"Motorola Config 15", USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
-	{"mtp_adb", MTP_TYPE_FLAG | ADB_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_MTP_ADB_PRODUCT_ID,
-	"Motorola Config 32", USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
-	
-	{"eth", ETH_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_FACTORY_PRODUCT_ID, 
-	"Motorola Config 13", USB_CLASS_COMM, USB_CLASS_COMM, USB_CLASS_PER_INTERFACE},
-	{"acm", ACM_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_ACM_PRODUCT_ID, 
-	"Motorola Config 1", USB_CLASS_COMM, USB_CLASS_COMM, USB_CLASS_PER_INTERFACE},
-	
-	{"acm_eth", ACM_TYPE_FLAG | ETH_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_PHONE_PORTAL_LITE_PRODUCT_ID, 
-	"Motorola Phone Portal Device", USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
-	{"acm_eth_adb", ACM_TYPE_FLAG | ETH_TYPE_FLAG | ADB_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_PHONE_PORTAL_LITE_ADB_PRODUCT_ID, 
-	"Motorola Phone Portal ADB Device", USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
-	
-	{"acm_eth_mtp", ACM_TYPE_FLAG | ETH_TYPE_FLAG | MTP_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_PHONE_PORTAL_PRODUCT_ID,
-	"Motorola Config 30", USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
-	{"acm_eth_mtp_adb", ACM_TYPE_FLAG | ETH_TYPE_FLAG | MTP_TYPE_FLAG | ADB_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_PHONE_PORTAL_ADB_PRODUCT_ID, 
-	"Motorola Config 31", USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
-	
-	{"rndis", RNDIS_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_RNDIS_PRODUCT_ID, 
-	"Motorola RNDIS Device", USB_CLASS_WIRELESS_CONTROLLER, USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
-	
-	{"rndis_adb", RNDIS_TYPE_FLAG | ADB_TYPE_FLAG, MAPPHONE_VENDOR_ID, MAPPHONE_RNDIS_ADB_PRODUCT_ID,
-	"Motorola RNDIS ADB Device", USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
-	
+static struct device_pid_vid mot_android_vid_pid[MAX_DEVICE_TYPE_NUM] = {
+	{"msc", MSC_TYPE_FLAG, 0x22b8, 0x41d9, "Motorola Config 14",
+	 USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE,
+	 USB_CLASS_PER_INTERFACE},
+	{"cdrom", CDROM_TYPE_FLAG, 0x22b8, 0x41de, "Motorola CDROM Device",
+	 USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE,
+	 USB_CLASS_PER_INTERFACE},
+	{"msc_adb", MSC_TYPE_FLAG | ADB_TYPE_FLAG, 0x22b8, 0x41db,
+	 "Motorola Config 42", USB_CLASS_PER_INTERFACE,
+	 USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
+	{"eth", ETH_TYPE_FLAG, 0x22b8, 0x41d4, "Motorola Config 13",
+	 USB_CLASS_COMM, USB_CLASS_COMM, USB_CLASS_PER_INTERFACE},
+	{"mtp", MTP_TYPE_FLAG, 0x22b8, 0x41D6, "Motorola Config 15",
+	 USB_CLASS_PER_INTERFACE,
+	 USB_CLASS_PER_INTERFACE, USB_CLASS_PER_INTERFACE},
+	{"acm", ACM_TYPE_FLAG, 0x22b8, 0x6422, "Motorola Config 1",
+	 USB_CLASS_COMM, USB_CLASS_COMM, USB_CLASS_PER_INTERFACE},
+	{"eth_adb", ETH_TYPE_FLAG | ADB_TYPE_FLAG, 0x22b8, 0x41d4,
+	 "Motorola Android Composite Device"},
+	{"acm_eth_mtp", ACM_TYPE_FLAG | ETH_TYPE_FLAG | MTP_TYPE_FLAG,
+	 0x22b8,
+	 0x41d8, "Motorola Config 30", USB_CLASS_VENDOR_SPEC,
+	 USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
+	{"mtp_adb", MTP_TYPE_FLAG | ADB_TYPE_FLAG, 0x22b8, 0x41dc,
+	 "Motorola Config 32", USB_CLASS_VENDOR_SPEC,
+	 USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
+	{"acm_eth_mtp_adb",
+	 ACM_TYPE_FLAG | ETH_TYPE_FLAG | MTP_TYPE_FLAG | ADB_TYPE_FLAG,
+	 0x22b8,
+	 0x41da, "Motorola Config 31", USB_CLASS_VENDOR_SPEC,
+	 USB_CLASS_VENDOR_SPEC, USB_CLASS_VENDOR_SPEC},
+	{"acm_eth_adb", ACM_TYPE_FLAG | ETH_TYPE_FLAG | ADB_TYPE_FLAG,
+	 0x22b8,
+	 0x41e2, "Motorola Android Composite Device"},
+	{"msc_eth", MSC_TYPE_FLAG | ETH_TYPE_FLAG, 0x22b8, 0x41d4,
+	 "Motorola Android Composite Device"},
+	{"msc_adb_eth", MSC_TYPE_FLAG | ADB_TYPE_FLAG | ETH_TYPE_FLAG,
+	 0x22b8,
+	 0x41d4, "Motorola Android Composite Device"},
 	{}
 };
 
@@ -193,8 +189,8 @@ static struct usb_device_descriptor device_desc = {
 	.bDeviceClass = USB_CLASS_VENDOR_SPEC,
 	.bDeviceSubClass = USB_CLASS_VENDOR_SPEC,
 	.bDeviceProtocol = USB_CLASS_VENDOR_SPEC,
-	.idVendor = __constant_cpu_to_le16(MAPPHONE_VENDOR_ID),
-	.idProduct = __constant_cpu_to_le16(MAPPHONE_PRODUCT_ID),
+	.idVendor = __constant_cpu_to_le16(VENDOR_ID),
+	.idProduct = __constant_cpu_to_le16(PRODUCT_ID),
 	.bcdDevice = __constant_cpu_to_le16(0xffff),
 	.bNumConfigurations = 1,
 };
@@ -546,40 +542,10 @@ static int enable_android_usb_product_function(char *device_name, int cnt)
 	struct usb_function *f;
 	int enable = 1;
 	int disable = 0;
-	
-	/* Motorola wrote the code so "Charge Only" mode is seen as USB Mass Storage,
-	 * and based on that the driver chooses vid and pid. That's why "charge_only"
-	 * acts as if Mass Storage is enabled.
-	 */
-	
-	if (!strncmp(device_name, "msc", cnt - 1) || !strncmp(device_name, "charge_only", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "usb_mass_storage"))				
-				f->hidden = disable;
-			else
-				f->hidden = enable;
-		}
-		return 0;
-	}
-	
-	if (!strncmp(device_name, "msc_adb", cnt - 1) || !strncmp(device_name, "charge_only_adb", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "usb_mass_storage") || !strcmp(f->name, "adb"))
-				f->hidden = disable;
-			else
-				f->hidden = enable;
-		}
-		return 0;
-	}
-	
-	if (!strncmp(device_name, "eth", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
+
+	if (!strncmp(device_name, "eth", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
 			if (!strcmp(f->name, "usbnet"))
 				f->hidden = disable;
 			else
@@ -587,74 +553,45 @@ static int enable_android_usb_product_function(char *device_name, int cnt)
 		}
 		return 0;
 	}
-	
-	if (!strncmp(device_name, "acm", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "acm"))
+	if (!strncmp(device_name, "eth_adb", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "usbnet")
+			    || !strcmp(f->name, "adb"))
 				f->hidden = disable;
 			else
 				f->hidden = enable;
 		}
 		return 0;
 	}
-	
-	if (!strncmp(device_name, "acm_eth", cnt - 1)) 
-	{	
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "acm") || !strcmp(f->name, "usbnet"))
+	if (!strncmp(device_name, "acm_eth_mtp", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "acm")
+			    || !strcmp(f->name, "usbnet")
+			    || !strcmp(f->name, "mtp"))
 				f->hidden = disable;
 			else
 				f->hidden = enable;
 		}
 		return 0;
 	}
-	
-	if (!strncmp(device_name, "acm_eth_adb", cnt - 1)) 
-	{	
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "acm") || !strcmp(f->name, "usbnet") || !strcmp(f->name, "adb"))
+	if (!strncmp(device_name, "acm_eth_mtp_adb", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "acm")
+			    || !strcmp(f->name, "usbnet")
+			    || !strcmp(f->name, "mtp")
+			    || !strcmp(f->name, "adb"))
 				f->hidden = disable;
 			else
 				f->hidden = enable;
 		}
 		return 0;
 	}
-	
-	
-	if (!strncmp(device_name, "acm_eth_mtp", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "acm") || !strcmp(f->name, "usbnet")
-				|| !strcmp(f->name, "mtp"))
-				f->hidden = disable;
-			else
-				f->hidden = enable;
-		}
-		return 0;
-	}
-	
-	if (!strncmp(device_name, "acm_eth_mtp_adb", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "acm") || !strcmp(f->name, "usbnet")
-				|| !strcmp(f->name, "mtp") || !strcmp(f->name, "adb"))
-				f->hidden = disable;
-			else
-				f->hidden = enable;
-		}
-		return 0;
-	}
-	
-	if (!strncmp(device_name, "mtp", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
+	if (!strncmp(device_name, "mtp", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
 			if (!strcmp(f->name, "mtp"))
 				f->hidden = disable;
 			else
@@ -662,42 +599,40 @@ static int enable_android_usb_product_function(char *device_name, int cnt)
 		}
 		return 0;
 	}
-	
-	if (!strncmp(device_name, "mtp_adb", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "mtp") || !strcmp(f->name, "adb"))
-				f->hidden = disable;
-			else
-				f->hidden = enable;
-		}
-		return 0;
-	}		
-	
-	if (!strncmp(device_name, "rndis", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "rndis"))
+	if (!strncmp(device_name, "mtp_adb", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "mtp")
+			    || !strcmp(f->name, "adb"))
 				f->hidden = disable;
 			else
 				f->hidden = enable;
 		}
 		return 0;
 	}
-	if (!strncmp(device_name, "rndis_adb", cnt - 1)) 
-	{
-		list_for_each_entry(f, &android_config_driver.functions, list) 
-		{
-			if (!strcmp(f->name, "rndis") || !strcmp(f->name, "adb"))
+	if (!strncmp(device_name, "msc", cnt - 1)
+	    || !strncmp(device_name, "cdrom", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "usb_mass_storage"))
 				f->hidden = disable;
 			else
 				f->hidden = enable;
 		}
 		return 0;
 	}
-	
+	if (!strncmp(device_name, "msc_adb", cnt - 1)) {
+		list_for_each_entry(f, &android_config_driver.functions,
+				    list) {
+			if (!strcmp(f->name, "usb_mass_storage")
+			    || !strcmp(f->name, "adb"))
+				f->hidden = disable;
+			else
+				f->hidden = enable;
+		}
+		return 0;
+	}
+
 	printk(KERN_ERR "unknown mode: %s\n", device_name);
 	return -1;
 }
@@ -773,140 +708,60 @@ void android_register_function(struct android_usb_function *f)
 		bind_functions(dev);
 }
 
-/* Find best matching product after the change, containing all functions.
- * Set PID based on that from the VID & PID structure.
- */
-struct android_usb_product* get_best_product(const char* required_function)
+void android_enable_function(struct usb_function *f, int enable)
 {
-	int best_mismatch = 0x7FFFFFFF;
-	struct android_usb_product *p = _android_dev->products;
-	struct android_usb_product *best = NULL;
-	struct usb_function *f;
-	int count = _android_dev->num_products;
-	int cur_mismatch, has_required, matched;
-	int i, j;
-	
-	if (!p)
-		return NULL;
-	
-	for (i = 0; i < count; i++) 
-	{
-		cur_mismatch = 0;
-		has_required = 0;
-		
-		list_for_each_entry(f, &android_config_driver.functions, list)
-		{
-			if (f->hidden)
-				continue;
-			
-			matched = 0;
-			for (j = 0; j < p[i].num_functions; j++)
-			{
-				if (!strcmp(p[i].functions[j], f->name))
-				{
-					matched = 1;
-					
-					if (required_function != NULL && !strcmp(f->name, required_function))
-						has_required = 1;
-					
+	struct android_dev *dev = _android_dev;
+	int disable = !enable;
+	int product_id;
+
+	if (!!f->hidden != disable) {
+		f->hidden = disable;
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+		if (!strcmp(f->name, "rndis")) {
+			struct usb_function *func;
+
+			/* We need to specify the COMM class in the
+			 * device descriptor if we are using RNDIS.
+			 */
+			if (enable)
+#ifdef CONFIG_USB_ANDROID_RNDIS_WCEIS
+				dev->cdev->desc.bDeviceClass =
+				    USB_CLASS_WIRELESS_CONTROLLER;
+#else
+				dev->cdev->desc.bDeviceClass =
+				    USB_CLASS_COMM;
+#endif
+			else
+				dev->cdev->desc.bDeviceClass =
+				    USB_CLASS_PER_INTERFACE;
+
+			/* Windows does not support other interfaces
+			 * when RNDIS is enabled, so we disable UMS when
+			 * RNDIS is on.  */
+			list_for_each_entry(func,
+					    &android_config_driver.functions,
+					    list) {
+				if (!strcmp
+				    (func->name, "usb_mass_storage")) {
+					func->hidden = enable;
 					break;
 				}
 			}
-			
-			if (!matched)
-				cur_mismatch++;
 		}
-		
-		if ((required_function == NULL || has_required) && best_mismatch > cur_mismatch)
-		{
-			best_mismatch = cur_mismatch;
-			best = &(p[i]);
-		}
-	}
-	
-	return best;
-}
+#endif
 
-void android_enable_function(struct usb_function *f, int enable)
-{
-	struct android_usb_product *product;
-	struct android_dev *dev = _android_dev;
-	struct device_mode_change_dev *dev_mode_change = _device_mode_change_dev;
-	struct device_pid_vid* dev_pid_vid;
-	int disable = !enable;
-	int product_id;
-	int i;
+		product_id = get_product_id(dev);
+		device_desc.idProduct = __constant_cpu_to_le16(product_id);
+		if (dev->cdev)
+			dev->cdev->desc.idProduct = device_desc.idProduct;
 
-	if (!!f->hidden != disable) 
-	{
-		f->hidden = disable;
-		
-		if (enable)
-			product = get_best_product(f->name);
-		else
-			product = get_best_product(NULL);
-		
-		if (product == NULL)
-			product_id = get_product_id(dev);
-		else
-			product_id = product->product_id;
-		
-		/* Get info from VID & PID structure,
-		 * it's unique for the configurations 
-		 * that are useable from the driver side.
-		 */
-		
-		dev_pid_vid = NULL;
-		
-		for (i = 0; i < MAX_DEVICE_TYPE_NUM; i++) 
-		{
-			if (mot_android_vid_pid[i].pid == product_id)
-			{
-				dev_pid_vid = &(mot_android_vid_pid[i]);
-				break;
-			}
-		}
-		
-		/* assign vid, pid and device class */
-		if (dev_pid_vid != NULL)
-		{
-			/* Enable it (it will be valid configuration)  */
-			enable_android_usb_product_function(dev_pid_vid->name, strlen(dev_pid_vid->name) + 1);
-			
-			device_desc.idProduct = __constant_cpu_to_le16(dev_pid_vid->pid);
-			device_desc.idVendor = __constant_cpu_to_le16(dev_pid_vid->vid);
-			
-			if (dev->cdev) 
-			{
-				dev->cdev->desc.idProduct = device_desc.idProduct;
-				dev->cdev->desc.idVendor = device_desc.idVendor;
-				
-				dev->cdev->desc.bDeviceClass = dev_pid_vid->class;
-				dev->cdev->desc.bDeviceSubClass = dev_pid_vid->subclass;
-				dev->cdev->desc.bDeviceProtocol = dev_pid_vid->protocol;
-			}
-		}
-		else
-		{
-			device_desc.idProduct = __constant_cpu_to_le16(product_id);
-			
-			if (dev->cdev)
-				dev->cdev->desc.idProduct = device_desc.idProduct;
-		}
-		
-		/* reset flags */
-		dev_mode_change->usb_device_cfg_flag = 0;
-		dev_mode_change->usb_get_desc_flag = 0;
-		dev_mode_change->usb_data_transfer_flag = 0;
-		dev_mode_change->pc_mode_switch_flag = 0;
-		
 		/* force reenumeration */
-		if (dev->cdev && dev->cdev->gadget) 
-		{
+		if (dev->cdev && dev->cdev->gadget &&
+		    dev->cdev->gadget->speed != USB_SPEED_UNKNOWN) {
 			usb_gadget_disconnect(dev->cdev->gadget);
-			msleep(50);
+			msleep(10);
 			usb_gadget_connect(dev->cdev->gadget);
-			msleep(50);
 		}
 	}
 }
@@ -1222,7 +1077,7 @@ static int __init init(void)
 		return -ENOMEM;
 
 	/* set default values, which should be overridden by platform data */
-	dev->product_id = MAPPHONE_PRODUCT_ID;
+	dev->product_id = PRODUCT_ID;
 	_android_dev = dev;
 
 	/* allocate device_mode_change dev and wait queue */
