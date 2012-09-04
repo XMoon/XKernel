@@ -2292,13 +2292,7 @@ void dispc_set_parallel_interface_mode(enum omap_parallel_interface_mode mode)
 		break;
 
 	case OMAP_DSS_PARALLELMODE_DSI:
-	case OMAP_DSS_PARALLELMODE_DSI_CMD:
 		stallmode = 1;
-		gpout1 = 1;
-		break;
-
-	case OMAP_DSS_PARALLELMODE_DSI_VM:
-		stallmode = 0;
 		gpout1 = 1;
 		break;
 
