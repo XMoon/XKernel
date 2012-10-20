@@ -33,7 +33,6 @@
 #include <linux/led-lm3530.h>
 #include <linux/wl127x-rfkill.h>
 #include <linux/wl127x-test.h>
-#include <linux/omap_mdm_ctrl.h>
 #include <linux/gpio_mapping.h>
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
@@ -2421,98 +2420,6 @@ static void __init mapphone_bt_init(void)
 	platform_device_register(&mapphone_wl1271_test_device);
 }
 
-static struct omap_mdm_ctrl_platform_data omap_mdm_ctrl_platform_data;
-
-static struct platform_device omap_mdm_ctrl_platform_device = {
-	.name = OMAP_MDM_CTRL_MODULE_NAME,
-	.id = -1,
-	.dev = {
-		.platform_data = &omap_mdm_ctrl_platform_data,
-	},
-};
-
-static int __init mapphone_omap_mdm_ctrl_init(void)
-{
-	if (!is_cdma_phone())
-		return -ENODEV;
-
-	omap_mdm_ctrl_platform_data.bp_ready_ap_gpio =
-		get_gpio_by_name("ipc_i_bp_ready");
-	if (omap_mdm_ctrl_platform_data.bp_ready_ap_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_i_bp_ready from device_tree\n");
-		omap_mdm_ctrl_platform_data.bp_ready_ap_gpio =
-			MAPPHONE_BP_READY_AP_GPIO;
-	}
-
-	omap_mdm_ctrl_platform_data.bp_ready2_ap_gpio =
-		get_gpio_by_name("ipc_i_bp_ready2");
-	if (omap_mdm_ctrl_platform_data.bp_ready2_ap_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_i_bp_ready2 from device_tree\n");
-		omap_mdm_ctrl_platform_data.bp_ready2_ap_gpio =
-			MAPPHONE_BP_READY2_AP_GPIO;
-	}
-
-	omap_mdm_ctrl_platform_data.bp_resout_gpio =
-		get_gpio_by_name("ipc_i_bp_resout");
-	if (omap_mdm_ctrl_platform_data.bp_resout_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_i_bp_resout from device_tree\n");
-		omap_mdm_ctrl_platform_data.bp_resout_gpio =
-			MAPPHONE_BP_RESOUT_GPIO;
-	}
-
-	omap_mdm_ctrl_platform_data.bp_pwron_gpio =
-		get_gpio_by_name("ipc_o_bp_pwron");
-	if (omap_mdm_ctrl_platform_data.bp_pwron_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_o_bp_pwron from device_tree\n");
-		omap_mdm_ctrl_platform_data.bp_pwron_gpio =
-			MAPPHONE_BP_PWRON_GPIO;
-	}
-
-	omap_mdm_ctrl_platform_data.ap_to_bp_pshold_gpio =
-		get_gpio_by_name("ipc_o_bp_pshold");
-	if (omap_mdm_ctrl_platform_data.ap_to_bp_pshold_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_o_bp_pshold from device_tree\n");
-		omap_mdm_ctrl_platform_data.ap_to_bp_pshold_gpio =
-			MAPPHONE_AP_TO_BP_PSHOLD_GPIO;
-	}
-
-	omap_mdm_ctrl_platform_data.ap_to_bp_flash_en_gpio =
-		get_gpio_by_name("ipc_o_bp_flash_en");
-	if (omap_mdm_ctrl_platform_data.ap_to_bp_flash_en_gpio < 0) {
-		printk(KERN_DEBUG "mapphone_omap_mdm_ctrl_init: "
-			"can't get ipc_o_bp_flash_en from device_tree\n");
-		omap_mdm_ctrl_platform_data.ap_to_bp_flash_en_gpio =
-			MAPPHONE_AP_TO_BP_FLASH_EN_GPIO;
-	}
-
-	gpio_request(omap_mdm_ctrl_platform_data.bp_ready2_ap_gpio,
-		"BP Flash Ready");
-	gpio_direction_input(omap_mdm_ctrl_platform_data.bp_ready2_ap_gpio);
-	omap_cfg_reg(T4_34XX_GPIO59_DOWN);
-
-	gpio_request(omap_mdm_ctrl_platform_data.bp_resout_gpio,
-		"BP Reset Output");
-	gpio_direction_input(omap_mdm_ctrl_platform_data.bp_resout_gpio);
-	omap_cfg_reg(AE3_34XX_GPIO139_DOWN);
-
-	gpio_request(omap_mdm_ctrl_platform_data.bp_pwron_gpio, "BP Power On");
-	gpio_direction_output(omap_mdm_ctrl_platform_data.bp_pwron_gpio, 0);
-	omap_cfg_reg(AH3_34XX_GPIO137_OUT);
-
-	gpio_request(omap_mdm_ctrl_platform_data.ap_to_bp_pshold_gpio,
-		"AP to BP PS Hold");
-	gpio_direction_output(
-		omap_mdm_ctrl_platform_data.ap_to_bp_pshold_gpio, 0);
-	omap_cfg_reg(AF3_34XX_GPIO138_OUT);
-
-	return platform_device_register(&omap_mdm_ctrl_platform_device);
-}
-
 static struct omap_vout_config mapphone_vout_platform_data = {
 	.max_width = 864,
 	.max_height = 648,
@@ -2693,7 +2600,6 @@ static void __init mapphone_init(void)
 	mapphone_padconf_init();
 	mapphone_gpio_mapping_init();
 	mapphone_ramconsole_init();
-	mapphone_omap_mdm_ctrl_init();
 	mapphone_spi_init();
 	mapphone_cpcap_client_init();
 	mapphone_flash_init();
