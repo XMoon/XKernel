@@ -2453,6 +2453,10 @@ EXPORT_SYMBOL(isp_restore_ctx);
 int isp_get(void)
 {
 	int ret_err = 0;
+	int rval;
+	rval = isp_buf_allocation();
+	if (rval)
+		return -EINVAL;
 	DPRINTK_ISPCTRL("isp_get() old %d\n", isp_obj.ref_count);
 	mutex_lock(&(isp_obj.isp_mutex));
 	if (isp_obj.ref_count == 0) {
@@ -2531,6 +2535,7 @@ int isp_put(void)
 	mutex_lock(&(isp_obj.isp_mutex));
 	if (isp_obj.ref_count)
 		if (--isp_obj.ref_count == 0) {
+			isp_buf_free();
 			isp_save_ctx();
 			off_mode = 1;
 
@@ -2603,9 +2608,6 @@ static int __init isp_init(void)
 	buff_addr_mapped = 0;
 	alloc_done = 0;
 	offset_value = 0;
-	rval = isp_buf_allocation();
-	if (rval)
-		return -EINVAL;
 
 	for (i = 0; i < CBK_END; ++i) {
 		ispirq_obj.irq_events[i] = 0;
@@ -2669,7 +2671,6 @@ static void __exit isp_cleanup(void)
 #endif
 	isp_ccdc_cleanup();
 	free_irq(INT_34XX_CAM_IRQ, &ispirq_obj);
-	isp_buf_free();
 }
 
 /**
