@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Sun Dec 16 15:04:27 2012
+# Sun Dec 16 15:54:27 2012
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -42,10 +42,10 @@ CONFIG_HAVE_KERNEL_BZIP2=y
 CONFIG_HAVE_KERNEL_LZMA=y
 CONFIG_HAVE_KERNEL_XZ=y
 CONFIG_HAVE_KERNEL_LZO=y
-CONFIG_KERNEL_GZIP=y
+# CONFIG_KERNEL_GZIP is not set
 # CONFIG_KERNEL_BZIP2 is not set
 # CONFIG_KERNEL_LZMA is not set
-# CONFIG_KERNEL_XZ is not set
+CONFIG_KERNEL_XZ=y
 # CONFIG_KERNEL_LZO is not set
 CONFIG_SWAP=y
 CONFIG_SYSVIPC=y
@@ -359,7 +359,7 @@ CONFIG_ALIGNMENT_TRAP=y
 #
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="root=/dev/nfs nfsroot=192.168.0.1:/home/user/buildroot ip=192.168.0.2:192.168.0.1:192.168.0.1:255.255.255.0:tgt:eth0:off rw console=ttyS2,115200n8"
+CONFIG_CMDLINE="console=ttyS2,115200n8 console=ttyMTD10 rw mem=244M@0x80C00000 vram=4M omapfb.vram=0:4M init=/init ip=off brdrev=P3_TABLET_CU androidboot.bootloader=80.91 androidboot.mode=normal androidboot.hardware=choles mtdparts=omap2-nand.0:1536k@2176k(pds),384k@4480k(cid),384k@7424k(misc),3584k(boot)ro,4608k@15232k(recovery),8960k(cdrom),179840k@29184k(system),106m@209408k(cache),199m(userdata),2m(kpanic)"
 # CONFIG_XIP_KERNEL is not set
 # CONFIG_KEXEC is not set
 
