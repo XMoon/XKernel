@@ -199,7 +199,8 @@ static int ashmem_release(struct inode *ignored, struct file *file)
 	struct ashmem_area *asma = file->private_data;
 	struct ashmem_range *range, *next;
 
-	mutex_lock(&ashmem_mutex);
+	if (!mutex_trylock(&ashmem_mutex))
+		return -1;
 	list_for_each_entry_safe(range, next, &asma->unpinned_list, unpinned)
 		range_del(range);
 	mutex_unlock(&ashmem_mutex);
@@ -276,7 +277,7 @@ out:
  * chunks of ashmem regions LRU-wise one-at-a-time until we hit 'nr_to_scan'
  * pages freed.
  */
-static int ashmem_shrink(int nr_to_scan, gfp_t gfp_mask)
+static int ashmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 {
 	struct ashmem_range *range, *next;
 
@@ -286,7 +287,8 @@ static int ashmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	if (!nr_to_scan)
 		return lru_count;
 
-	mutex_lock(&ashmem_mutex);
+	if (!mutex_trylock(&ashmem_mutex))
+		return -1;
 	list_for_each_entry_safe(range, next, &ashmem_lru_list, lru) {
 		struct inode *inode = range->asma->file->f_dentry->d_inode;
 		loff_t start = range->pgstart * PAGE_SIZE;
@@ -591,8 +593,8 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case ASHMEM_PURGE_ALL_CACHES:
 		ret = -EPERM;
 		if (capable(CAP_SYS_ADMIN)) {
-			ret = ashmem_shrink(0, GFP_KERNEL);
-			ashmem_shrink(ret, GFP_KERNEL);
+			ret = ashmem_shrink(&ashmem_shrinker, 0, GFP_KERNEL);
+			ashmem_shrink(&ashmem_shrinker, ret, GFP_KERNEL);
 		}
 		break;
 	}
