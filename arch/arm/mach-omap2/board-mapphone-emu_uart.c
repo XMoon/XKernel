@@ -96,6 +96,9 @@
 #define OMAP2_MCSPI_CHCONF_IS		(1 << 18)
 #define OMAP2_MCSPI_CHCONF_TURBO	(1 << 19)
 #define OMAP2_MCSPI_CHCONF_FORCE	(1 << 20)
+#define OMAP2_MCSPI_CHCONF_TCS0		(1 << 25)
+#define OMAP2_MCSPI_CHCONF_TCS1		(1 << 26)
+#define OMAP2_MCSPI_CHCONF_TCS_MASK	(0x03 << 25)
 
 #define OMAP2_MCSPI_SYSCFG_WKUP		(1 << 2)
 #define OMAP2_MCSPI_SYSCFG_IDL		(2 << 3)
@@ -111,7 +114,8 @@
 #define OMAP2_MCSPI_MODE_IS_SLAVE	1
 #define OMAP_MCSPI_WAKEUP_ENABLE	1
 
-#define OMAP_MCSPI_BASE                 IO_ADDRESS(0x48098000)
+/*mcspi base address: (0x48098000)1st SPI, (0x4809A00) 2nd SPI*/
+#define OMAP_MCSPI_BASE	0x48098000
 
 #define WORD_LEN            32
 #define CLOCK_DIV           12	/* 2^(12)=4096  48000000/4096<19200 */
@@ -121,8 +125,8 @@
 #define WRITE_CPCAP         1
 #define READ_CPCAP          0
 
-#define CM_ICLKEN1_CORE  IO_ADDRESS(0x48004A10)
-#define CM_FCLKEN1_CORE  IO_ADDRESS(0x48004A00)
+#define CM_ICLKEN1_CORE  0x48004A10
+#define CM_FCLKEN1_CORE  0x48004A00
 #define OMAP2_MCSPI_EN_MCSPI1   (1 << 18)
 
 #define  RESET_FAIL      1
@@ -176,26 +180,19 @@ static bool emu_uart_is_active = FALSE;
 
 static inline void raw_writel_reg(u32 value, u32 reg)
 {
+	unsigned int absolute_reg = (u32)OMAP_MCSPI_BASE + reg;
 #if defined(LOCAL_DEVELOPER_DEBUG)
-	unsigned int absolute_reg;
-
-	absolute_reg = OMAP_MCSPI_BASE + reg;
 	printk(KERN_ERR " raw write reg =0x%x value=0x%x \n", absolute_reg,
 	       value);
 #endif
-
-	__raw_writel(value, OMAP_MCSPI_BASE + reg);
+	omap_writel(value, absolute_reg);
 }
 
 static inline u32 raw_readl_reg(u32 reg)
 {
 	u32 result;
-	unsigned int absolute_reg;
-	absolute_reg = (u32)OMAP_MCSPI_BASE + reg;
-#if defined(LOCAL_DEVELOPER_DEBUG)
-	printk(KERN_ERR " raw read reg =0x%x  \n", absolute_reg);
-#endif
-	result = __raw_readl(absolute_reg);
+	unsigned int absolute_reg = (u32)OMAP_MCSPI_BASE + reg;
+	result = omap_readl(absolute_reg);
 #if defined(LOCAL_DEVELOPER_DEBUG)
 	printk(KERN_ERR " raw read reg =0x%x result =0x%x  \n",
 	       absolute_reg, result);
@@ -257,6 +254,10 @@ static void raw_omap2_mcspi_channel_config(void)
 
 	/* select channel 0... otherwise 0x14*channel_num */
 	result = raw_readl_reg(OMAP2_MCSPI_CHCONF0);
+
+	/* TCS Chip select Timing(2.5 clock cycles) */
+	result &= ~(OMAP2_MCSPI_CHCONF_TCS_MASK);
+	result |= OMAP2_MCSPI_CHCONF_TCS1;
 
 	/* configure master mode... */
 	result &= ~OMAP2_MCSPI_CHCONF_IS;
@@ -424,13 +425,13 @@ static void raw_omap_mcspi_enable_IFclock(void)
 {
 	u32 result;
 
-	result = __raw_readl(CM_FCLKEN1_CORE);
+	result = omap_readl(CM_FCLKEN1_CORE);
 	RAW_MOD_REG_BIT(result, OMAP2_MCSPI_EN_MCSPI1, 1);
-	__raw_writel(result, CM_FCLKEN1_CORE);
+	omap_writel(result, CM_FCLKEN1_CORE);
 
-	result = __raw_readl(CM_ICLKEN1_CORE);
+	result = omap_readl(CM_ICLKEN1_CORE);
 	RAW_MOD_REG_BIT(result, OMAP2_MCSPI_EN_MCSPI1, 1);
-	__raw_writel(result, CM_ICLKEN1_CORE);
+	omap_writel(result, CM_ICLKEN1_CORE);
 
 }
 
@@ -536,7 +537,10 @@ static void write_omap_mux_register(u16 offset, u8 mode, u8 input_en)
 void activate_emu_uart(void)
 {
 	int i;
+	u16 tmp = 0;
 
+	read_cpcap_register_raw(18, &tmp);
+	printk(KERN_ALERT "Reading CPCAP vendor_version: 0x%04X\n", tmp);
 	/*
 	 * Step 1:
 	 * Configure OMAP SCM to set all ULPI pin of USB OTG to SAFE MODE
