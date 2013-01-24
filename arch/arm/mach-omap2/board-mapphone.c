@@ -78,6 +78,10 @@
 #include <linux/adp5588_keypad.h>
 #endif
 
+#ifdef CONFIG_EMU_UART_DEBUG
+#include <plat/board-mapphone-emu_uart.h>
+#endif
+
 #if defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OLDOMAP3)
 #include <media/v4l2-int-device.h>
 
@@ -2598,6 +2602,10 @@ static void __init mapphone_init(void)
 
 	mapphone_bp_model_init();
 	mapphone_padconf_init();
+#ifdef CONFIG_EMU_UART_DEBUG
+	/* emu-uart function will override devtree iomux setting */
+	activate_emu_uart();
+#endif
 	mapphone_gpio_mapping_init();
 	mapphone_ramconsole_init();
 	mapphone_spi_init();
