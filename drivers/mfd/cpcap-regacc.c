@@ -22,6 +22,10 @@
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
 
+#ifdef CONFIG_EMU_UART_DEBUG
+#include <plat/board-mapphone-emu_uart.h>
+#endif
+
 #define IS_CPCAP(reg) ((reg) >= CPCAP_REG_START && (reg) <= CPCAP_REG_END)
 
 static DEFINE_MUTEX(reg_access);
@@ -46,7 +50,7 @@ static DEFINE_MUTEX(reg_access);
  * in this mask indicates that the corresponding bit (when not being changed)
  * should be written with a value of '0'.
  */
-static const struct {
+static struct {
 	unsigned short address;         /* Address of the register */
 	unsigned short constant_mask;	/* Constant modifiability mask */
 	unsigned short rbw_mask;	/* Read-before-write mask */
@@ -368,6 +372,15 @@ int cpcap_regacc_init(struct cpcap_device *cpcap)
 
 	data = (struct cpcap_platform_data *)spi->controller_data;
 
+#ifdef CONFIG_EMU_UART_DEBUG
+	if (is_emu_uart_active())
+	{
+		printk(KERN_INFO "cpcap-regacc: emu_uart is active, fixing table.\n");
+		register_info_tbl[CPCAP_REG_VUSBC].constant_mask = 0xFFFF;
+		register_info_tbl[CPCAP_REG_USBC2].constant_mask = 0xFFFF;
+	}
+#endif
+	
 	for (i = 0; i < data->init_len; i++) {
 		mask = 0xFFFF;
 		mask &= ~(register_info_tbl[data->init[i].reg].constant_mask);
