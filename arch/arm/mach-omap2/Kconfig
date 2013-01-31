@@ -163,6 +163,10 @@ config MACH_OMAP_3430_ES3_ARM_ERRATA
 	select ARM_ERRATA_621766
 	select ARM_ERRATA_725233
 	
+config MAPPHONE_2NDBOOT
+	bool "Motorola Android Platform phone 2nd-boot kernel modifications
+	depends on MACH_MAPPHONE
+	
 config EMU_UART_DEBUG
 	bool "Setting MiniUSB port as UART3 to debug kernel"
 	default n
