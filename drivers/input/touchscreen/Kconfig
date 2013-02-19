@@ -545,5 +545,14 @@ config TOUCHSCREEN_QUANTUM_OBP
 	  the Object Based Protocol based firmware.
 
 	  If unsure, say N.
+	  
+config QTOUCH_RATELIMIT
+        bool "Limit events sent by the touchscreen driver"
+        depends on TOUCHSCREEN_QUANTUM_OBP
+        default y
+        help
+          This reduces the events produced by the touchscreen by half,
+          and takes care of always sending "finger up" and "first
+          touch" events.
 
 endif
