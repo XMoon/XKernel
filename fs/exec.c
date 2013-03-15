@@ -420,6 +420,8 @@ static int copy_strings(int argc, char __user * __user * argv,
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
+			
+			cond_resched();
 
 			if (fatal_signal_pending(current)) {
 				ret = -ERESTARTNOHAND;
