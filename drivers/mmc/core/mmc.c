@@ -567,16 +567,12 @@ static int mmc_resume(struct mmc_host *host)
 	return err;
 }
 
-static int mmc_power_restore(struct mmc_host *host)
+static void mmc_power_restore(struct mmc_host *host)
 {
-	int ret;
-
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_claim_host(host);
-	ret = mmc_init_card(host, host->ocr, host->card);
+	mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
-
-	return ret;
 }
 
 static int mmc_sleep(struct mmc_host *host)
