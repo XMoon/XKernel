@@ -746,9 +746,9 @@ static void _dispc_set_scale_coef(enum omap_plane plane,
 				memcpy(vc, filter_coeff_M8, sizeof(vc));
 				break;
 			};
-		} else {
+		}else {
 			/* out_height == orig_height */
-			if (dmaoptenabled && cpu_is_omap3630()) {
+			if (dmaoptenabled && cpu_is_omap3630()){
 				DSSDBG("Chosing default M val = 8 \n");
 				memcpy(vc, filter_coeff_M8, sizeof(vc));
 			}
@@ -834,9 +834,9 @@ static void _dispc_set_scale_coef(enum omap_plane plane,
 				memcpy(hc, filter_coeff_M8, sizeof(hc));
 				break;
 			};
-		} else {
+		}else {
 			/* out_width == orig_width */
-			if (dmaoptenabled && cpu_is_omap3630()) {
+			if (dmaoptenabled && cpu_is_omap3630()){
 				DSSDBG("Chosing default M val = 8 \n");
 				memcpy(hc, filter_coeff_M8, sizeof(hc));
 			}
@@ -1282,7 +1282,7 @@ static void _dispc_set_scaling(enum omap_plane plane,
 	/* Override the settings if 36xx and DMA optimizations are enabled.
 	   Special case for 1:1 scaling.
 	*/
-	if (dmaoptenabled && cpu_is_omap3630()) {
+	if (dmaoptenabled && cpu_is_omap3630()){
 		if (!orig_width || orig_width == out_width)
 			fir_hinc = 1024;
 		if (!orig_height || orig_height == out_height)
@@ -1362,12 +1362,11 @@ static void _dispc_set_rotation_attrs(enum omap_plane plane, u8 rotation,
 			}
 		}
 
-		REG_FLD_MOD(dispc_reg_att[plane], vidrot, 13, 12);
-		if (cpu_is_omap3630()) {
-			REG_FLD_MOD(dispc_reg_att[plane], 0x0, 18, 18);
-		} else {
-			if (rotation == OMAP_DSS_ROT_90 ||
-				rotation == OMAP_DSS_ROT_270)
+                REG_FLD_MOD(dispc_reg_att[plane], vidrot, 13, 12);
+                if (cpu_is_omap3630()) {
+ 			REG_FLD_MOD(dispc_reg_att[plane], 0x0, 18, 18);
+		}else {
+			if (rotation == OMAP_DSS_ROT_90 || rotation == OMAP_DSS_ROT_270)
 				REG_FLD_MOD(dispc_reg_att[plane], 0x1, 18, 18);
 			else
 				REG_FLD_MOD(dispc_reg_att[plane], 0x0, 18, 18);
@@ -1817,19 +1816,17 @@ static int _dispc_setup_plane(enum omap_plane plane,
 
 		/* Must use 5-tap filter? */
 		five_taps = height > out_height * 2;
-		if (cpu_is_omap3630() && width <= 1024) {
+	        if (cpu_is_omap3630() && width <= 1024) {
 			if (rotation_type == OMAP_DSS_ROT_VRFB) {
-				/* DMA Optimizations for 36xx.Using 5 tap for
-				all scaling ratios and setting
-				VIDDMAOPTIMIZATION(20), VIDVERTICALTAPS(21)
-				and VIDLINEBUFFERSPLIT(22) bits in
-				DISPC_VIDn_ATTRIBUTES register */
+				/* DMA Optimizations for 36xx.Using 5 tap for all
+				scaling ratios and setting VIDDMAOPTIMIZATION(20),
+				VIDVERTICALTAPS(21) and VIDLINEBUFFERSPLIT(22)
+				bits in DISPC_VIDn_ATTRIBUTES register */
 				dmaoptenabled = false;
 				if (rotation == 1 || rotation == 3) {
 					dmaoptenabled = true;
 					five_taps = true;
-					REG_FLD_MOD(dispc_reg_att[plane],
-					7, 22, 20);
+					REG_FLD_MOD(dispc_reg_att[plane], 7, 22, 20);
 				}
 			}
 		}

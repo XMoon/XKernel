@@ -2250,8 +2250,17 @@ static int omapfb_probe(struct platform_device *pdev)
 				sw_te = def_display->sw_te_sup(def_display);
 
 			if (sw_te == false) {
-				if (def_display->enable_te)
-					def_display->enable_te(def_display, 1);
+				/* Workaround for TE disable on Sage.
+				 * will be removed by CR# IKSTABLETWOV-3732 */
+				if (def_display->panel.panel_id == 0x000a0003) {
+					if (def_display->enable_te)
+						def_display->enable_te(
+							def_display, 0);
+				} else {
+					if (def_display->enable_te)
+						def_display->enable_te(
+							def_display, 1);
+				}
 			} else {
 				if (def_display->enable_te)
 					def_display->enable_te(def_display, 0);

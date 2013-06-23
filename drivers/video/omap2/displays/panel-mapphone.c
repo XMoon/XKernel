@@ -38,7 +38,6 @@
 #define EDISCO_CMD_SET_COLUMN_ADDRESS	0x2A
 #define EDISCO_CMD_SET_PAGE_ADDRESS	0x2B
 #define EDISCO_CMD_SET_TEAR_OFF		0x34
-#define EDISCO_CMD_SET_MAX_RET_PKG_SIZE	0x37
 #define EDISCO_CMD_SET_TEAR_ON		0x35
 #define EDISCO_CMD_SET_TEAR_SCANLINE	0x44
 #define EDISCO_CMD_READ_SCANLINE	0x45
@@ -77,7 +76,7 @@
 #define SUPPLIER_ID_TMD 0x0126
 #define SUPPLIER_ID_INVALID 0xFFFF
 
-#define DISP_480_854_CM_TE_SCANLINE 	0x80;
+#define DISP_480_854_CM_TE_SCANLINE    0x80;
 
 /* this must be match with schema.xml section "device-id-value" */
 #define MOT_DISP_MIPI_480_854_CM   	0x000a0001
@@ -125,37 +124,12 @@ struct mapphone_data {
 
 static void mapphone_panel_disable_local(struct omap_dss_device *dssdev);
 
-static void set_delay_timer(struct omap_dss_device *dssdev, unsigned long delay)
-{
-	struct mapphone_data *map_data = (struct mapphone_data *) dssdev->data;
-	map_data->disp_init_delay = jiffies + msecs_to_jiffies(delay);
-}
-
-static void check_delay_timer(struct omap_dss_device *dssdev)
-{
-	struct mapphone_data *map_data = (struct mapphone_data *) dssdev->data;
-	unsigned long jiff_time = 0;
-
-	/*
-	 * Delay if necessary, before calling EDISCO commands after
-	 * EDISCO_CMD_EXIT_SLEEP
-	 */
-	if (map_data->disp_init_delay) {
-		jiff_time = jiffies;
-		if (map_data->disp_init_delay > jiff_time)
-			mdelay(jiffies_to_msecs(map_data->disp_init_delay -
-					jiff_time));
-		map_data->disp_init_delay = 0;
-	}
-}
-
 static bool mapphone_panel_sw_te_sup(struct omap_dss_device *dssdev)
 {
 	bool sw_te = false;
 
 	switch (dssdev->panel.panel_id) {
 	case MOT_DISP_310_1_MIPI_320_480_CM:
-	case MOT_DISP_310_2_MIPI_320_480_CM:
 		sw_te = true;
 		break;
 	default:
@@ -180,50 +154,43 @@ static int mapphone_panel_read_scl(struct omap_dss_device *dssdev)
 	data[0] = 0x0;
 	data[1] = 0x0;
 
-	if (dssdev->panel.panel_id == MOT_DISP_310_2_MIPI_320_480_CM) {
-		/*
-		 * There is an issue with this display's controller. it will
-		 * reset  max_rx_packet_size back to 1 if it receives BTA after
-		 * receiving the max_rx_packet_size command from host to change
-		 * max_rx_packet_size
-		 */
-		data[0] = 0x2;
-		if (dsi_vc_write_nosync(EDISCO_CMD_VC,
-				EDISCO_CMD_SET_MAX_RET_PKG_SIZE, data, 1))
-			goto error;
+	if (dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 2))
+		goto end;
 
-		if (dsi_vc_dcs_read(EDISCO_CMD_VC,
-				EDISCO_CMD_READ_SCANLINE, data, 2) == 2)
-			scan_line = (data[0] << 8) | data[1];
+	if (dsi_vc_dcs_read(EDISCO_CMD_VC,
+			EDISCO_CMD_READ_SCANLINE, data, 2) == 2)
+		scan_line = (data[0] << 8) | data[1];
+	else
+		printk(KERN_ERR "failed to read scan_line \n");
 
-		data[0] = 0x1;
-		if (dsi_vc_write_nosync(EDISCO_CMD_VC,
-				EDISCO_CMD_SET_MAX_RET_PKG_SIZE, data, 1))
-			goto error;
-
-		if ((scan_line < 0) ||
-				(scan_line > dssdev->panel.timings.y_res))
-			scan_line = 0;
-
-	} else {
-		if (dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 2))
-			goto error;
-
-		if (dsi_vc_dcs_read(EDISCO_CMD_VC,
-				EDISCO_CMD_READ_SCANLINE, data, 2) == 2)
-			scan_line = (data[0] << 8) | data[1];
-		else
-			printk(KERN_ERR "failed to read scan_line \n");
-
-		dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 1);
-	}
-
+	dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 1);
+end:
 	return scan_line;
-error:
-	printk(KERN_WARNING "failed to read scanline. Used default value \n");
-	return 0;
 }
 
+static void set_delay_timer(struct omap_dss_device *dssdev, unsigned long delay)
+{
+	struct mapphone_data *map_data = (struct mapphone_data *) dssdev->data;
+	map_data->disp_init_delay = jiffies + msecs_to_jiffies(delay);
+}
+
+static void check_delay_timer(struct omap_dss_device *dssdev)
+{
+	struct mapphone_data *map_data = (struct mapphone_data *) dssdev->data;
+	unsigned long jiff_time = 0;
+
+	/*
+	 * Delay if necessary, before calling EDISCO commands after
+	 * EDISCO_CMD_EXIT_SLEEP
+	 */
+	if (map_data->disp_init_delay) {
+		jiff_time = jiffies;
+		if (map_data->disp_init_delay > jiff_time)
+			mdelay(jiffies_to_msecs(map_data->disp_init_delay -
+					jiff_time));
+		map_data->disp_init_delay = 0;
+	}
+}
 
 static int dsi_mipi_vm_panel_on(struct omap_dss_device *dssdev)
 {
@@ -657,7 +624,7 @@ static int dsi_mipi_280_vm_320_240_panel_enable(struct omap_dss_device *dssdev)
 
 	DBG(" dsi_mipi_280_vm_320_240_panel_enable() \n");
 
-	/* turn off mcs register acces protection */
+	/* turn off mcs register access protection */
 	data[0] = EDISCO_CMD_SET_MCS;
 	data[1] = 0x00;
 	ret = dsi_vc_write(EDISCO_CMD_VC, EDISCO_SHORT_WRITE_1, data, 2);
@@ -801,11 +768,9 @@ static int dsi_mipi_cm_480_854_panel_enable(struct omap_dss_device *dssdev)
 		if (mapphone_panel_read_supplier_id() == SUPPLIER_ID_TMD) {
 			DBG("dsi_mipi_cm_480_854_panel_enable() - TMD panel\n");
 			dssdev->panel.panel_id = MOT_DISP_MIPI_480_854_CM;
-			/* This is not a good way to handle for multiple
-			 * display resources, but it is OK for now */
 			map_data->te_scan_line = DISP_480_854_CM_TE_SCANLINE;
 			printk(KERN_INFO "Overwrite te_scan_line=%d\n",
-					map_data->te_scan_line);
+				map_data->te_scan_line);
 		}
 	}
 
@@ -1011,6 +976,8 @@ static int dsi_mipi_310_1_cm_320_480_panel_enable(
 
 	DBG("dsi_mipi_310_1_cm_320_480_panel_enable() \n");
 
+	mdelay(15);
+
 	data[0] = EDISCO_CMD_EXIT_SLEEP_MODE;
 	ret = dsi_vc_dcs_write(EDISCO_CMD_VC, data, 1);
 	if (ret)
@@ -1066,10 +1033,6 @@ static int dsi_mipi_310_1_cm_320_480_panel_enable(
 			goto error;
 
 		dispc_enable_spatial_dithering(true);
-	} else {
-		printk(KERN_ERR "un-support format pixel_size =%d\n",
-				dssdev->ctrl.pixel_size);
-		goto error;
 	}
 
 	return 0;
@@ -1094,16 +1057,14 @@ static int dsi_mipi_310_2_cm_320_480_panel_enable(
 
 	mdelay(10);
 
-	/*
-	 * There is an issue with this display's controller. it will
-	 * reset  max_rx_packet_size back to 1 if it receives BTA after
-	 * receiving the max_rx_packet_size from host to change
-	 * max_rx_packet_size
-	 */
-	data[0] = 0x06;
-	if (dsi_vc_write_nosync(EDISCO_CMD_VC,
-				EDISCO_CMD_SET_MAX_RET_PKG_SIZE, data, 1))
-		goto error;
+	/* turn off mcs register acces protection */
+	data[0] = EDISCO_CMD_SET_MCS;
+	data[1] = 0x00;
+	ret = dsi_vc_write(EDISCO_CMD_VC, EDISCO_SHORT_WRITE_1, data, 2);
+
+	ret = dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 6);
+	if (ret)
+		printk(KERN_ERR "failed to set max_rx__packet_size\n");
 
 	memset(data, 0, sizeof(data));
 
@@ -1114,17 +1075,15 @@ static int dsi_mipi_310_2_cm_320_480_panel_enable(
 			data[0], data[1], data[2], data[3],
 			data[4], data[5]);
 
-	data[0] = 0x01;
-	if (dsi_vc_write_nosync(EDISCO_CMD_VC,
-				EDISCO_CMD_SET_MAX_RET_PKG_SIZE, data, 1))
-		goto error;
+	dsi_vc_set_max_rx_packet_size(EDISCO_CMD_VC, 1);
 
 	data[0] = 0x3a;
-	if (dssdev->ctrl.pixel_size == 16) {
+	if (dssdev->ctrl.pixel_size == 16)
 		data[1] = 0x05;
-		dispc_enable_spatial_dithering(true);
-	} else {
-		printk(KERN_ERR "un-support format pixel_size =%d\n",
+	else if (dssdev->ctrl.pixel_size != 18)
+		data[1] = 0x06;
+	else {
+		printk(KERN_ERR "Invalied format pixel_size =%d\n",
 			dssdev->ctrl.pixel_size);
 		goto error;
 	}
@@ -1208,31 +1167,31 @@ error:
 
 static bool mapphone_panel_deep_sleep_mode(struct omap_dss_device *dssdev)
 {
-	bool deep_sleep_mode_sup;
+	bool ret = false;
 	u8 data[2];
 
 	switch (dssdev->panel.panel_id) {
 	case MOT_DISP_310_1_MIPI_320_480_CM:
 		data[0] = 0x3B; /* ENTER_DSTB_MODE command */
 		data[1] = 0x01;
-		deep_sleep_mode_sup = true;
+		ret = true;
 		break;
 	case MOT_DISP_310_2_MIPI_320_480_CM:
 		data[0] = 0x4F; /* ENTER_DSTB_MODE command */
 		data[1] = 0x01;
-		deep_sleep_mode_sup = true;
+		ret = true;
 		break;
 	default:
-		deep_sleep_mode_sup = false;
+		ret = false;
 	}
 
-	if (deep_sleep_mode_sup) {
+	if (ret == true) {
 		if (dsi_vc_dcs_write_nosync(EDISCO_CMD_VC, data, 2))
 			printk(KERN_ERR "fail to send ENTER_DSTB_MODE =0x%x\n",
 				data[0]);
 	}
 
-	return deep_sleep_mode_sup;
+	return ret;
 }
 
 static void mapphone_panel_disable_local(struct omap_dss_device *dssdev)
@@ -1250,8 +1209,14 @@ static void mapphone_panel_disable_local(struct omap_dss_device *dssdev)
 
 	msleep(100);
 
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
+	/*
+	 * mapphone_panel_deep_sleep_mode(0 will return false if the panel
+	 * doesn't support depp_sleep_mode
+	 */
+	if (mapphone_panel_deep_sleep_mode(dssdev) == false) {
+		if (dssdev->platform_disable)
+			dssdev->platform_disable(dssdev);
+	}
 }
 
 static void mapphone_panel_disable(struct omap_dss_device *dssdev)
