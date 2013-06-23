@@ -55,7 +55,7 @@ module_param(use_spi_crc, bool, 0);
 static int mmc_schedule_delayed_work(struct delayed_work *work,
 				     unsigned long delay)
 {
-	//wake_lock(&mmc_delayed_work_wake_lock);
+	wake_lock(&mmc_delayed_work_wake_lock);
 	return queue_delayed_work(workqueue, work, delay);
 }
 
@@ -289,7 +289,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * The limit is really 250 ms, but that is
 			 * insufficient for some crappy cards.
 			 */
-			limit_us = 300000;
+			limit_us = 3000000;
 		else
 			limit_us = 100000;
 
@@ -532,10 +532,12 @@ void mmc_host_deeper_disable(struct work_struct *work)
 
 	/* If the host is claimed then we do not want to disable it anymore */
 	if (!mmc_try_claim_host(host))
-		return;
+		goto out;
 	mmc_host_do_disable(host, 1);
 	mmc_do_release_host(host);
 
+out:
+	wake_unlock(&mmc_delayed_work_wake_lock);
 }
 
 /**
@@ -1056,8 +1058,6 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
-	wake_lock(&mmc_delayed_work_wake_lock);
-
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -1176,12 +1176,8 @@ void mmc_stop_host(struct mmc_host *host)
 
 	if (host->caps & MMC_CAP_DISABLE)
 		cancel_delayed_work(&host->disable);
-	if (cancel_delayed_work_sync(&host->detect))
-		wake_unlock(&mmc_delayed_work_wake_lock);
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
-
-	/* clear pm flags now and let card drivers set them as needed */
-	host->pm_flags = 0;
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
@@ -1201,45 +1197,37 @@ void mmc_stop_host(struct mmc_host *host)
 	mmc_power_off(host);
 }
 
-int mmc_power_save_host(struct mmc_host *host)
+void mmc_power_save_host(struct mmc_host *host)
 {
-	int ret = 0;
-
 	mmc_bus_get(host);
 
 	if (!host->bus_ops || host->bus_dead || !host->bus_ops->power_restore) {
 		mmc_bus_put(host);
-		return -EINVAL;
+		return;
 	}
 
 	if (host->bus_ops->power_save)
-		ret = host->bus_ops->power_save(host);
+		host->bus_ops->power_save(host);
 
 	mmc_bus_put(host);
 
 	mmc_power_off(host);
-
-	return ret;
 }
 EXPORT_SYMBOL(mmc_power_save_host);
 
-int mmc_power_restore_host(struct mmc_host *host)
+void mmc_power_restore_host(struct mmc_host *host)
 {
-	int ret;
-
 	mmc_bus_get(host);
 
 	if (!host->bus_ops || host->bus_dead || !host->bus_ops->power_restore) {
 		mmc_bus_put(host);
-		return -EINVAL;
+		return;
 	}
 
 	mmc_power_up(host);
-	ret = host->bus_ops->power_restore(host);
+	host->bus_ops->power_restore(host);
 
 	mmc_bus_put(host);
-
-	return ret;
 }
 EXPORT_SYMBOL(mmc_power_restore_host);
 
@@ -1299,8 +1287,7 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 
 	if (host->caps & MMC_CAP_DISABLE)
 		cancel_delayed_work(&host->disable);
-	if (cancel_delayed_work_sync(&host->detect))
-		wake_unlock(&mmc_delayed_work_wake_lock);
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -1317,13 +1304,12 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 			mmc_claim_host(host);
 			mmc_detach_bus(host);
 			mmc_release_host(host);
-			host->pm_flags = 0;
 			err = 0;
 		}
 	}
 	mmc_bus_put(host);
 
-	if (!err && !(host->pm_flags & MMC_PM_KEEP_POWER))
+	if (!err)
 		mmc_power_off(host);
 
 	return err;
@@ -1347,10 +1333,8 @@ int mmc_resume_host(struct mmc_host *host)
 	}
 
 	if (host->bus_ops && !host->bus_dead) {
-		if (!(host->pm_flags & MMC_PM_KEEP_POWER)) {
-			mmc_power_up(host);
-			mmc_select_voltage(host, host->ocr);
-		}
+		mmc_power_up(host);
+		mmc_select_voltage(host, host->ocr);
 		BUG_ON(!host->bus_ops->resume);
 		err = host->bus_ops->resume(host);
 		if (err) {
