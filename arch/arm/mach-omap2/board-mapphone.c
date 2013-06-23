@@ -101,11 +101,83 @@
 #endif
 #endif
 
+////////////////////////////////////////////////////////////////////////
+// Adding by no change device tree
+/* Display panel Node */
+#define DT_PROP_TOUCH_I2C_ADDRESS       "i2c,address"
+#define DT_PROP_TOUCH_BOOT_I2C_ADDRESS  "boot_i2c_address"
+#define DT_PROP_TOUCH_KEYMAP		"touch_key_map"
+#define DT_PROP_TOUCH_FLAGS		"touchobp-flags"
+#define DT_PROP_TOUCH_CHECKSUM		"nv_checksum"
+#define DT_PROP_TOUCH_ABS_MIN_X		"abs_min_x"
+#define DT_PROP_TOUCH_ABS_MAX_X		"abs_max_x"
+#define DT_PROP_TOUCH_ABS_MIN_Y		"abs_min_y"
+#define DT_PROP_TOUCH_ABS_MAX_Y		"abs_max_y"
+#define DT_PROP_TOUCH_ABS_MIN_P		"abs_min_p"
+#define DT_PROP_TOUCH_ABS_MAX_P		"abs_max_p"
+#define DT_PROP_TOUCH_ABS_MIN_W		"abs_min_w"
+#define DT_PROP_TOUCH_ABS_MAX_W		"abs_max_w"
+#define DT_PROP_TOUCH_FUZZ_X		"fuzz_x"
+#define DT_PROP_TOUCH_FUZZ_Y		"fuzz_y"
+#define DT_PROP_TOUCH_FUZZ_P		"fuzz_p"
+#define DT_PROP_TOUCH_FUZZ_W		"fuzz_w"
+#define DT_PROP_TOUCH_KEY_ARRAY_MAP	"key_array_map"
+#define DT_PROP_TOUCH_KEY_ARRAY_COUNT	"key_array_count"
+#define DT_PROP_TOUCH_T7		"obj_t7"	/* power_cfg */
+#define DT_PROP_TOUCH_T8		"obj_t8"	/* acquire_cfg */
+#define DT_PROP_TOUCH_T9		"obj_t9"	/* multi_touch_cfg */
+#define DT_PROP_TOUCH_T15		"obj_t15"	/* key_array */
+#define DT_PROP_TOUCH_T17		"obj_t17"	/* linear_tbl_cfg */
+#define DT_PROP_TOUCH_T18		"obj_t18"	/* comms_config_cfg */
+#define DT_PROP_TOUCH_T19		"obj_t19"	/* gpio_pwm_cfg */
+#define DT_PROP_TOUCH_T20		"obj_t20"	/* grip_suppression_cfg */
+#define DT_PROP_TOUCH_T22		"obj_t22"	/* noise_suppression_cfg */
+#define DT_PROP_TOUCH_T23		"obj_t23"	/* touch_proximity_cfg */
+#define DT_PROP_TOUCH_T24		"obj_t24"	/* one_touch_gesture_proc_cfg */
+#define DT_PROP_TOUCH_T25		"obj_t25"	/* self_test_cfg */
+#define DT_PROP_TOUCH_T27		"obj_t27"	/* two_touch_gesture_proc_cfg */
+#define DT_PROP_TOUCH_T28		"obj_t28"	/* cte_config_cfg */
+#define DT_PROP_TOUCH_T36		"obj_t36"	/* noise1_suppression_cfg */
+
+#define DT_LCD_BACKLIGHT	"/System@0/I2C@0/LCDBacklight@0"
+#define DT_PROP_POWERUP_GEN_CNFG	"power_up_gen_config"
+#define DT_PROP_GEN_CNFG	"gen_config"
+#define DT_PROP_ALS_CNFG	"als_config"
+
+#define DT_PROP_BRIGHTNESS_RAMP		"brightness_ramp"
+#define DT_PROP_ALS_ZONE_INFO		"als_zone_info"
+#define DT_PROP_ALS_RESISTOR_SEL    "als_resistor_sel"
+#define DT_PROP_BRIGHTNESS_CTRL		"brightness_control"
+#define DT_PROP_ZB0		"zone_boundary_0"
+#define DT_PROP_ZB1		"zone_boundary_1"
+#define DT_PROP_ZB2		"zone_boundary_2"
+#define DT_PROP_ZB3		"zone_boundary_3"
+#define DT_PROP_ZT0		"zone_target_0"
+#define DT_PROP_ZT1		"zone_target_1"
+#define DT_PROP_ZT2		"zone_target_2"
+#define DT_PROP_ZT3		"zone_target_3"
+#define DT_PROP_ZT4		"zone_target_4"
+#define DT_PROP_MANUAL_CURRENT		"manual_current"
+#define DT_PROP_UPPER_CURR_SEL		"upper_curr_sel"
+#define DT_PROP_LOWER_CURR_SEL		"lower_curr_sel"
+#define DT_PROP_LENS_LOSS_COEFF		"lens_loss_coeff"
+
+/* Feature Node */
+#define DT_HIGH_LEVEL_FEATURE	"/System@0/Feature@0"
+#define DT_HIGH_LEVEL_FEATURE_HEADSET_UART_EN "feature_headset_uart_en"
+
+/* Sim Card Node */
+#define DT_PATH_SIM_DEV	"/System@0/SimDevice@0"
+#define DT_PROP_SIM_DEV_AVAILABILITY "sim_availability"
+
+
+////////////////////////////////////////////////////////////////////////
 #define MAPPHONE_IPC_USB_SUSP_GPIO	142
 #define MAPPHONE_AP_TO_BP_FLASH_EN_GPIO	157
 #define MAPPHONE_TOUCH_RESET_N_GPIO	164
 #define MAPPHONE_TOUCH_INT_GPIO		109
 #define MAPPHONE_LM_3530_INT_GPIO	41
+#define MAPPHONE_LM_3530_RESET_GPIO	93
 #define MAPPHONE_AKM8973_INT_GPIO	175
 #define MAPPHONE_AUDIO_PATH_GPIO	143
 #define MAPPHONE_BP_READY_AP_GPIO	141
@@ -1027,7 +1099,7 @@ static void mapphone_als_init(void)
 				 OMAP_GPIO_IRQ(lm3530_int_gpio);
 	}
 	lm3530_reset_gpio = get_gpio_by_name("lm3530_reset");
-	if (lm3530_int_gpio >= 0) {
+	if (lm3530_reset_gpio >= 0) {
 		gpio_request(lm3530_reset_gpio, "LED reset");
 		gpio_direction_output(lm3530_reset_gpio, 1);
 		msleep(10);
