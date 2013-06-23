@@ -94,6 +94,10 @@ config OMAP_SMARTREFLEX
 	  compensation for VDD1 and VDD2, user must write 1 to
 	  /sys/power/sr_vddX_autocomp, where X is 1 or 2.
 
+config OMAP3_OVERCLOCK
+	bool "OMAP3 Overclock"
+	depends on ARCH_OMAP34XX && CPU_FREQ && PM  
+	  
 config OMAP_VC_BYPASS_UPDATE
 	bool "Use VC Bypass method of updating voltage"
 	depends on OMAP_SMARTREFLEX
