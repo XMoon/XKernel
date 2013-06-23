@@ -112,6 +112,7 @@ obj-$(CONFIG_MACH_MAPPHONE)             += board-mapphone.o \
                                            board-mapphone-wifi.o \
                                            board-mapphone-gpio.o \
                                            board-mapphone-mmcprobe.o
+obj-$(CONFIG_MACH_MAPPHONE_OVERCLOCK)   += board-mapphone-overclock.o
 obj-$(CONFIG_MOT_FEAT_MDTV)             += board-mapphone-mdtv.o
 obj-$(CONFIG_EMU_UART_DEBUG)		+= board-mapphone-emu_uart.o
 obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
